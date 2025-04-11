@@ -13,11 +13,14 @@ from app.email import send_password_reset_email
 def index():
     return render_template('index.html', title='Home')
 
-# @app.route('/login', methods=['GET', 'POST'])
-# def login():
-#
-# @app.route('/logout', methods=['GET', 'POST'])
-# def logout():
-#
-# @app.route('/register', methods=['GET', 'POST'])
-# def register():
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    return render_template('login.html', title='Login')
+
+@app.route('/logout', methods=['GET', 'POST'])
+def logout():
+    return render_template('logout.html', title='Logout')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    return render_template('register.html', title='Register')
