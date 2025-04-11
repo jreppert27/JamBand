@@ -11,7 +11,7 @@ from app.email import send_password_reset_email
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    return render_template(index.html, title='Home')
+    return render_template('index.html', title='Home')
 
 # @app.route('/login', methods=['GET', 'POST'])
 # def login():
