@@ -24,3 +24,15 @@ def logout():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     return render_template('register.html', title='Register')
+
+@app.route('/home', methods=['GET', 'POST'])
+def home():
+    return render_template('home.html', title='Home')
+
+@app.route('/profile', methods=['GET', 'POST'])
+def profile():
+    return render_template('profile.html', title='Profile', user=current_user)
+
+@app.route('/group', methods=['GET', 'POST'])
+def group():
+    return render_template('group.html', title='Group')
