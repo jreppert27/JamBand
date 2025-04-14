@@ -1,6 +1,7 @@
+import os
 from datetime import datetime, timezone
 from urllib.parse import urlsplit
-from flask import render_template, flash, redirect, url_for, request
+from flask import render_template, flash, redirect, url_for, request, abort
 from flask_login import login_user, logout_user, current_user, login_required
 import sqlalchemy as sa
 from app import app, db
@@ -8,6 +9,9 @@ from app.forms import LoginForm, RegistrationForm, \
     EmptyForm, ResetPasswordRequestForm, ResetPasswordForm
 from app.models import User, Post
 from app.email import send_password_reset_email
+from werkzeug.utils import secure_filename
+
+app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'uploads')
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -54,10 +58,44 @@ def register():
 def home():
     return render_template('home.html', title='Home')
 
-@app.route('/profile', methods=['GET', 'POST'])
-def profile():
-    return render_template('profile.html', title='Profile', user=current_user)
 
+@app.route('/user/<username>', methods=['GET', 'POST'])
+@login_required
+def user(username):
+    # Retrieve the user profile.
+    user_obj = User.query.filter_by(username=username).first_or_404()
+
+    # Process form submission.
+    if request.method == 'POST':
+        # Only the owner can update their profile.
+        if current_user.id != user_obj.id:
+            abort(403)
+
+        # Update the bio.
+        new_bio = request.form.get('about_me', '')
+        user_obj.about_me = new_bio
+
+        # Process media file if one was uploaded.
+        media_file = request.files.get('media_upload')
+        if media_file and media_file.filename != "":
+            filename = secure_filename(media_file.filename)
+            media_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            media_file.save(media_path)
+            # You can save the media_path or filename to the database associated with the user.
+            flash('Media uploaded successfully!', 'info')
+
+        db.session.commit()
+        flash('Your profile has been updated.', 'success')
+        return redirect(url_for('user', username=user_obj.username))
+
+    # For GET requests, also pass the user's groups (if any).
+    groups = user_obj.groups
+    return render_template(
+        'profile.html',
+        title=f"{user_obj.username}'s Profile",
+        user=user_obj,
+        groups=groups
+    )
 @app.route('/group', methods=['GET', 'POST'])
 def group():
     return render_template('group.html', title='Group')

@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <!-- Header with a Large Photo -->
+  <div class="profile-header" style="background-color: #3378d4; height: 300px; background-size: cover; background-position: center;">
+    <div class="container h-100">
+      <div class="row h-100 align-items-end">
+        <div class="col">
+          <h1 class="text-white">{{ user.username }}</h1>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if current_user.id == user.id %}
+    <!-- Only profile owners have an editable form -->
+    <form method="POST" enctype="multipart/form-data">
+  {% endif %}
+
+  <!-- User Bio Section -->
+  <div class="profile-bio mt-4">
+    <h2>About Me</h2>
+    {% if current_user.id == user.id %}
+      <!-- Editable textarea for the profile owner -->
+      <textarea name="about_me" class="form-control" rows="5">{{ user.about_me }}</textarea>
+    {% else %}
+      <p>{{ user.about_me or "No bio available." }}</p>
+    {% endif %}
+  </div>
+
+  <!-- Media Carousel Section -->
+  <div class="profile-media mt-4">
+    <h2>Media</h2>
+    <div id="mediaCarousel" class="carousel slide" data-bs-ride="carousel">
+      <div class="carousel-inner">
+        <!-- Example carousel items; replace with dynamic media if available -->
+        <div class="carousel-item active">
+          <img src="{{ url_for('static', filename='img/media1.jpg') }}" class="d-block w-100" alt="Media 1">
+        </div>
+        <div class="carousel-item">
+          <img src="{{ url_for('static', filename='img/media2.jpg') }}" class="d-block w-100" alt="Media 2">
+        </div>
+        <div class="carousel-item">
+          <img src="{{ url_for('static', filename='img/media3.jpg') }}" class="d-block w-100" alt="Media 3">
+        </div>
+      </div>
+      <button class="carousel-control-prev" type="button" data-bs-target="#mediaCarousel" data-bs-slide="prev">
+        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Previous</span>
+      </button>
+      <button class="carousel-control-next" type="button" data-bs-target="#mediaCarousel" data-bs-slide="next">
+        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Next</span>
+      </button>
+    </div>
+
+    {% if current_user.id == user.id %}
+      <!-- Button that triggers the media editing modal -->
+      <button type="button" class="btn btn-secondary mt-3" data-bs-toggle="modal" data-bs-target="#mediaModal">
+        Edit Media
+      </button>
+    {% endif %}
+  </div>
+
+  <!-- User Groups Section (visible to all viewers) -->
+  <div class="profile-groups mt-4">
+    <h2>Groups</h2>
+    <div class="list-group">
+      {% for group in groups %}
+        <a href="{{ url_for('group', group_id=group.id) }}" class="list-group-item list-group-item-action">
+          <h5 class="mb-1">{{ group.name }}</h5>
+          <p class="mb-1">{{ group.bio or "No description provided." }}</p>
+        </a>
+      {% else %}
+        <p>No groups to display.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if current_user.id == user.id %}
+      <!-- Submit changes button for profile updates -->
+      <button type="submit" class="btn btn-primary mt-3">Save Changes</button>
+    </form>
+  {% endif %}
+
+  <!-- Bootstrap Modal for Editing Media (only for profile owner) -->
+  {% if current_user.id == user.id %}
+  <div class="modal fade" id="mediaModal" tabindex="-1" aria-labelledby="mediaModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="mediaModalLabel">Edit Media</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <!-- File input for media upload is placed inside the modal -->
+          <div class="mb-3">
+            <label for="media_upload" class="form-label">Upload New Media</label>
+            <input type="file" class="form-control" id="media_upload" name="media_upload">
+            <small class="text-muted">Choose an image to upload as part of your media collection.</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <!-- Modal buttons: Close without saving or simply close the modal since the file input is part of the main form -->
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <!-- This button closes the modal; actual saving happens when the main form is submitted -->
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log("Profile page loaded for user: {{ user.username }}");
+    // Additional interactivity can be added here as needed.
+  });
+</script>
+{% endblock %}
