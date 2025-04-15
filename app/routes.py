@@ -6,7 +6,7 @@ from flask_login import login_user, logout_user, current_user, login_required
 import sqlalchemy as sa
 from app import app, db
 from app.forms import LoginForm, RegistrationForm, \
-    EmptyForm, ResetPasswordRequestForm, ResetPasswordForm
+    EmptyForm, ResetPasswordRequestForm, ResetPasswordForm, PostForm
 from app.models import User, Post
 from app.email import send_password_reset_email
 from werkzeug.utils import secure_filename
