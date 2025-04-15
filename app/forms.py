@@ -23,7 +23,7 @@ class RegistrationForm(FlaskForm):
 
     def validate_password(self, password):
         user = db.session.scalar(sa.select(User).where(
-            User.password == password.data))
+            User.password_hash == password.data))
         if user is not None:
             raise ValidationError('Please use a different password.')
 
