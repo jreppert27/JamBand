@@ -39,6 +39,9 @@
             <li class="nav-item">
               <a class="nav-link {% if request.endpoint == 'logout' %}active" aria-current="page{% endif %}" href="{{ url_for('logout') }}">Logout</a>
             </li>
+            <li class="nav-item">
+              <a class="nav-link {% if request.endpoint == 'reset_db' %}active" aria-current="page{% endif %}" href="{{ url_for('reset_db') }}">RESET DB</a>
+            </li>
             {% endif %}
           </ul>
         </div>

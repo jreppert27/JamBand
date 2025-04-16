@@ -13,16 +13,55 @@ from werkzeug.utils import secure_filename
 
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'uploads')
 
+@app.route('/reset_db')
+def reset_db():
+    flash("Resetting database: deleting old data and repopulating with dummy data")
+    meta = db.metadata
+    for table in reversed(meta.sorted_tables):
+        print(f'Clearing table {table}')
+        db.session.execute(table.delete())
+    db.session.commit()
+
+    u1 = User(username="Gavin", email="gavin@garver.org")
+    u1.set_password("Gavinpassword")
+
+    u2 = User(username="Jack", email="jackreppert@gmail.com")
+    u2.set_password("Jackpassword")
+
+    u3 = User(username="Bob", email="bob@email.com")
+    u3.set_password("Bobpassword")
+
+    db.session.add_all([u1, u2, u3])
+    db.session.commit()
+
+    p1 = Post(header="My first post", body="This is my first post", author=u1)
+
+    p2 = Post(header="Cool thing", body="This is a cool thing here", author=u2)
+
+    p3 = Post(header="My Second post", body="This is my second post", author=u1)
+
+    p4 = Post(header="Hello world!", body="Hello there", author=u3)
+
+    db.session.add_all([p1, p2, p3, p4])
+    db.session.commit()
+    return redirect(url_for('index'))
+
 
 @app.route('/', methods=['GET', 'POST'])
+@app.route('/index', methods=['GET', 'POST'])
 def index():
     form = PostForm()
     if current_user.is_authenticated and form.validate_on_submit():
-        post = Post(body=form.post.data, author=current_user)
+        post = Post(
+            header=form.header.data if hasattr(form, 'header') else "New Post",
+            body=form.post.data,
+            author=current_user
+        )
         db.session.add(post)
         db.session.commit()
         flash('Your post is now live!')
         return redirect(url_for('index'))
+
     page = request.args.get('page', 1, type=int)
     if current_user.is_authenticated:
         posts = db.paginate(current_user.following_posts(), page=page,
