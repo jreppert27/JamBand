@@ -7,7 +7,7 @@ import sqlalchemy as sa
 from app import app, db
 from app.forms import LoginForm, RegistrationForm, \
     EmptyForm, ResetPasswordRequestForm, ResetPasswordForm, PostForm
-from app.models import User, Post
+from app.models import User, Post, Group
 from app.email import send_password_reset_email
 from werkzeug.utils import secure_filename
 
@@ -43,6 +43,13 @@ def reset_db():
     p4 = Post(header="Hello world!", body="Hello there", author=u3)
 
     db.session.add_all([p1, p2, p3, p4])
+    db.session.commit()
+
+    g1 = Group(Name='The creators', bio='We made this', members=[u1, u2])
+
+    g2 = Group(Name='The created', bio='We were made here', members=[u3])
+
+    db.session.add_all([g1, g2])
     db.session.commit()
     return redirect(url_for('index'))
 

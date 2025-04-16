@@ -155,8 +155,6 @@ class Group(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     name: so.Mapped[str] = so.mapped_column(sa.String(64), index=True, unique=True)
     bio: so.Mapped[Optional[str]] = so.mapped_column(sa.String(256))
-    created_at: so.Mapped[datetime] = so.mapped_column(default=lambda: datetime.now(timezone.utc))
-
     posts: so.WriteOnlyMapped[Post] = so.relationship(back_populates='group')
     comments: so.WriteOnlyMapped[Comment] = so.relationship(back_populates='group')
     members: so.WriteOnlyMapped['User'] = so.relationship(
