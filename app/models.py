@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from hashlib import md5
 from time import time
-from typing import Optional
+from typing import Optional, List
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from flask_login import UserMixin
@@ -42,7 +42,7 @@ class User(UserMixin, db.Model):
         secondary=followers, primaryjoin=(followers.c.followed_id == id),
         secondaryjoin=(followers.c.follower_id == id),
         back_populates='following')
-    groups: so.WriteOnlyMapped['Group'] = so.relationship(
+    groups: so.Mapped[List['Group']] = so.relationship(
         secondary='group_members', back_populates='members')
     followed_groups: so.WriteOnlyMapped['Group'] = so.relationship(
         secondary='group_followers', back_populates='followers')
