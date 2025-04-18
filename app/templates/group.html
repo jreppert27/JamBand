@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <!-- Colored header rectangle -->
+  <div class="group-header" style="background-color: #007bff; height: 250px; display: flex; align-items: center;">
+    <div class="container">
+      <h1 class="text-white">{{ group.name }}</h1>
+    </div>
+  </div>
+
+  <!-- Group Bio -->
+  <div class="group-bio mt-4">
+    <h2>About This Group</h2>
+    <p>{{ group.bio or "No description available." }}</p>
+  </div>
+
+  <!-- Media Carousel -->
+  <div class="group-media mt-4">
+    <h2>Media</h2>
+    <div id="groupCarousel" class="carousel slide" data-bs-ride="carousel">
+      <div class="carousel-inner">
+        <div class="carousel-item active">
+          <img src="{{ url_for('static', filename='img/group1.jpg') }}"
+               class="d-block w-100" alt="Media 1">
+        </div>
+        <div class="carousel-item">
+          <img src="{{ url_for('static', filename='img/group2.jpg') }}"
+               class="d-block w-100" alt="Media 2">
+        </div>
+        <div class="carousel-item">
+          <img src="{{ url_for('static', filename='img/group3.jpg') }}"
+               class="d-block w-100" alt="Media 3">
+        </div>
+      </div>
+      <button class="carousel-control-prev" type="button" data-bs-target="#groupCarousel" data-bs-slide="prev">
+        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Previous</span>
+      </button>
+      <button class="carousel-control-next" type="button" data-bs-target="#groupCarousel" data-bs-slide="next">
+        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Next</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Members List -->
+  <div class="group-members mt-4">
+    <h2>Members</h2>
+    <div class="row">
+      {% for member in members %}
+        <div class="col-md-3 text-center mb-4">
+          <img src="{{ member.avatar(128) }}" class="rounded-circle mb-2" alt="{{ member.username }}">
+          <h5><a href="{{ url_for('user', username=member.username) }}">{{ member.username }}</a></h5>
+        </div>
+      {% else %}
+        <p class="text-muted">This group has no members yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('Group page loaded for: {{ group.name }}');
+  });
+</script>
+{% endblock %}

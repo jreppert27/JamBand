@@ -157,12 +157,14 @@ class Group(db.Model):
     bio: so.Mapped[Optional[str]] = so.mapped_column(sa.String(256))
     posts: so.WriteOnlyMapped[Post] = so.relationship(back_populates='group')
     comments: so.WriteOnlyMapped[Comment] = so.relationship(back_populates='group')
-    members: so.WriteOnlyMapped['User'] = so.relationship(
+    members: so.Mapped[List['User']] = so.relationship(
         secondary='group_members', back_populates='groups')
     followers: so.WriteOnlyMapped['User'] = so.relationship(
         secondary='group_followers', back_populates='followed_groups')
     tags: so.WriteOnlyMapped['Tag'] = so.relationship(
-        secondary='tags', back_populates='groups')
+        secondary='tags',
+        back_populates='groups',
+        overlaps='tags')
 
     def __repr__(self):
         return '<Group {}>'.format(self.name)
@@ -201,9 +203,13 @@ class Tag(db.Model):
 
     parent: so.Mapped[Optional['Tag']] = so.relationship('Tag', remote_side=[id], backref='children')
     users: so.WriteOnlyMapped[User] = so.relationship(
-        secondary='tags', back_populates='tags')
+        secondary='tags',
+        back_populates='tags',
+        overlaps='tags')
     groups: so.WriteOnlyMapped[Group] = so.relationship(
-        secondary='tags', back_populates='tags')
+        secondary='tags',
+        back_populates='tags',
+        overlaps='tags,users')
 
     def __repr__(self):
         return '<Tag {}>'.format(self.title)

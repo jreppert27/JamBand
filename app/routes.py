@@ -22,6 +22,7 @@ def reset_db():
         db.session.execute(table.delete())
     db.session.commit()
 
+    # Create users
     u1 = User(username="Gavin", email="gavin@garver.org")
     u1.set_password("Gavinpassword")
 
@@ -34,24 +35,34 @@ def reset_db():
     db.session.add_all([u1, u2, u3])
     db.session.commit()
 
+    # Create some posts
     p1 = Post(header="My first post", body="This is my first post", author=u1)
-
-    p2 = Post(header="Cool thing", body="This is a cool thing here", author=u2)
-
+    p2 = Post(header="Cool thing",   body="This is a cool thing here", author=u2)
     p3 = Post(header="My Second post", body="This is my second post", author=u1)
-
     p4 = Post(header="Hello world!", body="Hello there", author=u3)
 
     db.session.add_all([p1, p2, p3, p4])
     db.session.commit()
 
-    g1 = Group(Name='The creators', bio='We made this', members=[u1, u2])
+    # Create groups
+    g1 = Group(name='The creators',
+               bio='We made this',
+               members=[u1, u2])     # Gavin & Jack
 
-    g2 = Group(Name='The created', bio='We were made here', members=[u3])
+    g2 = Group(name='The created',
+               bio='We were made here',
+               members=[u3])         # Bob
 
-    db.session.add_all([g1, g2])
+    # New group just for Jack
+    g3 = Group(name="Jack's Group",
+               bio="A special group for Jack",
+               members=[u2])         # Jack
+
+    db.session.add_all([g1, g2, g3])
     db.session.commit()
+
     return redirect(url_for('index'))
+
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -178,6 +189,14 @@ def user(username):
         user=user_obj,
         groups=groups
     )
-@app.route('/group', methods=['GET', 'POST'])
-def group():
-    return render_template('group.html', title='Group')
+@app.route('/group/<int:group_id>')
+@login_required
+def group(group_id):
+    group_obj = db.session.get(Group, group_id) or abort(404)
+    members = group_obj.members  # assumes this relationship is now readable
+    return render_template(
+        'group.html',
+        title=group_obj.name,
+        group=group_obj,
+        members=members
+    )
