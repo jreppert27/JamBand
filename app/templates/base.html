@@ -13,40 +13,75 @@
         rel="stylesheet"
         integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN"
         crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+      .offcanvas {
+        width: 250px;
+      }
+    </style>
   </head>
   <body>
+    <!-- New Navigation Bar -->
     <nav class="navbar navbar-expand-lg bg-body-tertiary">
       <div class="container">
-        <a class="navbar-brand" href="{{ url_for('index') }}">Jam Band</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-          <span class="navbar-toggler-icon"></span>
+        <!-- Left side - Side Menu Button (always visible) -->
+        <button class="btn btn-sm btn-outline-secondary border-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#sideMenu" aria-controls="sideMenu" aria-expanded="false" aria-label="Toggle side menu">
+          <i class="bi bi-list fs-4"></i>
         </button>
-        <div class="collapse navbar-collapse" id="navbarSupportedContent">
-          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-            <li class="nav-item">
-              <a class="nav-link {% if request.endpoint == 'index' %}active" aria-current="page{% endif %}" href="{{ url_for('index') }}">Home</a>
-            </li>
-          </ul>
-          <ul class="navbar-nav mb-2 mb-lg-0">
-            {% if current_user.is_anonymous %}
-            <li class="nav-item">
-              <a class="nav-link {% if request.endpoint == 'login' %}active" aria-current="page{% endif %}" href="{{ url_for('login') }}">Login</a>
-            </li>
-            {% else %}
-            <li class="nav-item">
-              <a class="nav-link {% if request.endpoint == 'user' %}active" aria-current="page{% endif %}" href="{{ url_for('user', username=current_user.username) }}">Profile</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link {% if request.endpoint == 'logout' %}active" aria-current="page{% endif %}" href="{{ url_for('logout') }}">Logout</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link {% if request.endpoint == 'reset_db' %}active" aria-current="page{% endif %}" href="{{ url_for('reset_db') }}">RESET DB</a>
-            </li>
-            {% endif %}
-          </ul>
+
+        <!-- Center - Brand Name -->
+        <div class="mx-auto">
+          <a class="navbar-brand" href="{{ url_for('index') }}">Jam Band</a>
+        </div>
+
+        <!-- Right side - Profile Button -->
+        <div>
+          {% if current_user.is_authenticated %}
+            <a href="{{ url_for('user', username=current_user.username) }}" class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-person-circle"></i>
+            </a>
+          {% else %}
+            <a href="{{ url_for('login') }}" class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-box-arrow-in-right"></i>
+            </a>
+          {% endif %}
         </div>
       </div>
     </nav>
+
+    <!-- Side Menu -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="sideMenu" aria-labelledby="sideMenuLabel">
+      <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="sideMenuLabel">Menu</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+      </div>
+      <div class="offcanvas-body">
+        <ul class="navbar-nav flex-column">
+          <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}">Home</a>
+          </li>
+          {% if current_user.is_authenticated %}
+          <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'user' and username == current_user.username %}active{% endif %}" href="{{ url_for('user', username=current_user.username) }}">Profile</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('reset_db') }}">Reset Database</a>
+          </li>
+          {% else %}
+          <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'login' %}active{% endif %}" href="{{ url_for('login') }}">Login</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'register' %}active{% endif %}" href="{{ url_for('register') }}">Register</a>
+          </li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+
     <div class="container mt-3">
       {% with messages = get_flashed_messages() %}
       {% if messages %}
@@ -57,6 +92,7 @@
       {% endwith %}
       {% block content %}{% endblock %}
     </div>
+
     <script
         src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
