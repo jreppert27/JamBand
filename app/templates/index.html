@@ -6,10 +6,17 @@
     {% if form %}
     {{ wtf.quick_form(form) }}
     {% endif %}
-    {% for post in posts %}
-        {% include '_post.html' %}
-    {% endfor %}
-    <nav aria-label="Post navigation">
+
+    <!-- Start of 3-column layout -->
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        {% for post in posts %}
+            <div class="col">
+                {% include '_post.html' %}
+            </div>
+        {% endfor %}
+    </div>
+    <!-- End of 3-column layout -->
+    <nav aria-label="Post navigation" class="mt-4">
         <ul class="pagination">
             <li class="page-item{% if not prev_url %} disabled{% endif %}">
                 <a class="page-link" href="{{ prev_url }}">
@@ -24,4 +31,3 @@
         </ul>
     </nav>
 {% endblock %}
-
