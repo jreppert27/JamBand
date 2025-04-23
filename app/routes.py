@@ -45,18 +45,9 @@ def reset_db():
     db.session.commit()
 
     # Create groups
-    g1 = Group(name='The creators',
-               bio='We made this',
-               members=[u1, u2])     # Gavin & Jack
-
-    g2 = Group(name='The created',
-               bio='We were made here',
-               members=[u3])         # Bob
-
-    # New group just for Jack
-    g3 = Group(name="Jack's Group",
-               bio="A special group for Jack",
-               members=[u2])         # Jack
+    g1 = Group(name='The creators', bio='We made this', members=[u1, u2])     # Gavin & Jack
+    g2 = Group(name='The created', bio='We were made here', members=[u3])         # Bob
+    g3 = Group(name="Jack's Group", bio="A special group for Jack", members=[u2])         # Jack
 
     db.session.add_all([g1, g2, g3])
     db.session.commit()
