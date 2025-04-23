@@ -1,13 +1,12 @@
 import os
 from datetime import datetime, timezone
 from urllib.parse import urlsplit
-from flask import render_template, flash, redirect, url_for, request, abort
+from flask import render_template, flash, redirect, url_for, request, abort, current_app
 from flask_login import login_user, logout_user, current_user, login_required
 import sqlalchemy as sa
 from app import app, db
-from app.forms import LoginForm, RegistrationForm, \
-    EmptyForm, ResetPasswordRequestForm, ResetPasswordForm, PostForm
-from app.models import User, Post, Group
+from app.forms import *
+from app.models import *
 from app.email import send_password_reset_email
 from werkzeug.utils import secure_filename
 
@@ -92,7 +91,7 @@ def index():
     next_url = url_for('index', page=posts.next_num) if posts.has_next else None
     prev_url = url_for('index', page=posts.prev_num) if posts.has_prev else None
     return render_template('index.html', title='Home', form=form,
-                           posts=posts.items, next_url=next_url,
+                           posts=posts, next_url=next_url,
                            prev_url=prev_url)
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -155,39 +154,47 @@ def home():
 @app.route('/user/<username>', methods=['GET', 'POST'])
 @login_required
 def user(username):
-    # Retrieve the user profile.
     user_obj = User.query.filter_by(username=username).first_or_404()
 
-    # Process form submission.
-    if request.method == 'POST':
-        # Only the owner can update their profile.
-        if current_user.id != user_obj.id:
-            abort(403)
+    # instantiate the follow/unfollow form
+    form = FollowButton()
+    is_following = current_user.is_following(user_obj)
 
-        # Update the bio.
+    # Only non-owners can hit the follow/unfollow POST
+    if user_obj != current_user and form.validate_on_submit():
+        if is_following:
+            current_user.unfollow(user_obj)
+            flash(f'You have unfollowed {user_obj.username}.', 'info')
+        else:
+            current_user.follow(user_obj)
+            flash(f'You are now following {user_obj.username}.', 'success')
+        db.session.commit()
+        return redirect(url_for('user', username=username))
+
+    # Profile‐edit logic (unchanged)
+    if request.method == 'POST' and user_obj == current_user:
         new_bio = request.form.get('about_me', '')
         user_obj.about_me = new_bio
 
-        # Process media file if one was uploaded.
         media_file = request.files.get('media_upload')
-        if media_file and media_file.filename != "":
+        if media_file and media_file.filename:
             filename = secure_filename(media_file.filename)
             media_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             media_file.save(media_path)
-            # You can save the media_path or filename to the database associated with the user.
             flash('Media uploaded successfully!', 'info')
 
         db.session.commit()
         flash('Your profile has been updated.', 'success')
-        return redirect(url_for('user', username=user_obj.username))
+        return redirect(url_for('user', username=username))
 
-    # For GET requests, also pass the user's groups (if any).
     groups = user_obj.groups
     return render_template(
         'profile.html',
         title=f"{user_obj.username}'s Profile",
         user=user_obj,
-        groups=groups
+        groups=groups,
+        form=form,
+        is_following=is_following
     )
 @app.route('/group/<int:group_id>')
 @login_required
@@ -200,3 +207,41 @@ def group(group_id):
         group=group_obj,
         members=members
     )
+
+@app.route('/create_post', methods=['POST'])
+@login_required
+def create_post():
+    header = request.form.get('header','').strip()
+    body   = request.form.get('body','').strip()
+    if not header or not body:
+        flash('Title and text are required.', 'danger')
+        return redirect(request.referrer or url_for('index'))
+
+    post = Post(header=header, body=body, author=current_user)
+
+    media = request.files.get('media')
+    if media and media.filename:
+        filename = secure_filename(media.filename)
+        save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        media.save(save_path)
+        # *** assign to post.media_path ***
+        post.media_path = filename
+
+    db.session.add(post)
+    db.session.commit()
+    flash('Your post has been created!', 'success')
+    return redirect(request.referrer or url_for('index'))
+
+@app.route('/post/<int:post_id>/comment', methods=['POST'])
+@login_required
+def comment_post(post_id):
+    post = Post.query.get_or_404(post_id)
+    body = request.form.get('comment_body','').strip()
+    if not body:
+        flash('Comment cannot be empty.', 'danger')
+        return redirect(request.referrer or url_for('index'))
+    c = Comment(body=body, author=current_user, post=post)
+    db.session.add(c)
+    db.session.commit()
+    flash('Your comment was posted.', 'success')
+    return redirect(request.referrer or url_for('index'))

@@ -30,8 +30,9 @@ class User(UserMixin, db.Model):
     last_seen: so.Mapped[Optional[datetime]] = so.mapped_column(
         default=lambda: datetime.now(timezone.utc))
 
-    posts: so.WriteOnlyMapped['Post'] = so.relationship(
-        back_populates='author')
+    posts: so.Mapped[List['Post']] = so.relationship(
+        back_populates='author',
+        order_by='Post.timestamp.desc()',)
     comments: so.WriteOnlyMapped['Comment'] = so.relationship(
         back_populates='author')
     following: so.WriteOnlyMapped['User'] = so.relationship(
@@ -127,10 +128,13 @@ class Post(db.Model):
     user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id), index=True)
     group_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey('group.id'), index=True, nullable=True)
 
+    media_path: so.Mapped[Optional[str]] = so.mapped_column(sa.String(256), nullable=True)
+
     author: so.Mapped[User] = so.relationship(back_populates='posts')
     group: so.Mapped[Optional['Group']] = so.relationship(back_populates='posts')
-    comments: so.WriteOnlyMapped['Comment'] = so.relationship(back_populates='post')
-
+    comments: so.Mapped[List['Comment']] = so.relationship(
+        back_populates='post',
+        order_by="Comment.timestamp.asc()")
     def __repr__(self):
         return '<Post {}>'.format(self.body)
 

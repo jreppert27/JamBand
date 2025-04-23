@@ -1,27 +1,55 @@
 {% extends "base.html" %}
-{% import "bootstrap/wtf.html" as wtf %}
 
 {% block content %}
-    <h1>Hi, {{ current_user.username }}!</h1>
-    {% if form %}
-    {{ wtf.quick_form(form) }}
-    {% endif %}
-    {% for post in posts %}
-        {% include '_post.html' %}
-    {% endfor %}
-    <nav aria-label="Post navigation">
-        <ul class="pagination">
-            <li class="page-item{% if not prev_url %} disabled{% endif %}">
-                <a class="page-link" href="{{ prev_url }}">
-                    <span aria-hidden="true">&larr;</span> Newer posts
-                </a>
-            </li>
-            <li class="page-item{% if not next_url %} disabled{% endif %}">
-                <a class="page-link" href="{{ next_url }}">
-                    Older posts <span aria-hidden="true">&rarr;</span>
-                </a>
-            </li>
-        </ul>
-    </nav>
-{% endblock %}
+  <style>
+    .pinterest-container {
+      column-count: 4;
+      column-gap: 1rem;
+    }
+    .pin-card {
+      display: inline-block;
+      width: 100%;
+      margin-bottom: 1rem;
+      break-inside: avoid;
+    }
+  </style>
 
+  <h2 class="mb-4">All Posts</h2>
+
+  <div class="pinterest-container">
+    {% for post in posts.items %}
+      <div class="pin-card">
+        {% include '_post.html' %}
+      </div>
+    {% else %}
+      <p>No posts to display.</p>
+    {% endfor %}
+  </div>
+
+  <nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+      {% if prev_url %}
+        <li class="page-item"><a class="page-link" href="{{ prev_url }}">« Prev</a></li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">« Prev</span></li>
+      {% endif %}
+
+      <!-- simple numeric pages -->
+      {% for p in posts.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% if p %}
+          <li class="page-item{% if p == posts.page %} active{% endif %}">
+            <a class="page-link" href="{{ url_for('index', page=p) }}">{{ p }}</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">…</span></li>
+        {% endif %}
+      {% endfor %}
+
+      {% if next_url %}
+        <li class="page-item"><a class="page-link" href="{{ next_url }}">Next »</a></li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">Next »</span></li>
+      {% endif %}
+    </ul>
+  </nav>
+{% endblock %}
