@@ -53,6 +53,8 @@ class EmptyForm(FlaskForm):
     submit = SubmitField('Submit')
 
 class PostForm(FlaskForm):
+    header = StringField('Title', validators=[
+        DataRequired(), Length(min=1, max=140)])
     post = TextAreaField('Say something', validators=[
         DataRequired(), Length(min=1, max=140)])
     submit = SubmitField('Submit')

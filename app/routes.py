@@ -70,7 +70,7 @@ def index():
     form = PostForm()
     if current_user.is_authenticated and form.validate_on_submit():
         post = Post(
-            header=form.header.data if hasattr(form, 'header') else "New Post",
+            header=form.header.data,
             body=form.post.data,
             author=current_user
         )
