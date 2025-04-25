@@ -1,3 +1,3 @@
 # JamBand
 
-A very cool app
+Jack & Gavin

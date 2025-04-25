@@ -39,8 +39,9 @@ def reset_db():
     p2 = Post(header="Cool thing",   body="This is a cool thing here", author=u2)
     p3 = Post(header="My Second post", body="This is my second post", author=u1)
     p4 = Post(header="Hello world!", body="Hello there", author=u3)
+    p5 = Post(header="Hey there!", body="Howdy!", author=u1)
 
-    db.session.add_all([p1, p2, p3, p4])
+    db.session.add_all([p1, p2, p3, p4, p5])
     db.session.commit()
 
     # Create groups
