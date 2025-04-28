@@ -96,9 +96,12 @@ def create_app(config_class=Config):
         app.logger.setLevel(logging.INFO)
         app.logger.info('JamBand startup')
 
-    from .forms import GroupForm
+    from .forms import GroupForm, PostForm, CommentForm, FollowButton
     @app.context_processor
     def inject_group_form():
-        return {'group_form': GroupForm()}
+        return {'group_form': GroupForm(),
+                'post_form': PostForm(),
+                'comment_form': CommentForm(),
+                'follow_form': FollowButton()}
 
     return app

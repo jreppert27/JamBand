@@ -116,7 +116,13 @@
          aria-labelledby="createPostModalLabel" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">
-          <form action="{{ url_for('main.index') }}" method="post" enctype="multipart/form-data">
+          <!-- 1) Use the create_post endpoint -->
+          <form action="{{ url_for('main.create_post') }}"
+                method="post"
+                enctype="multipart/form-data">
+            <!-- 2) Include the CSRF token -->
+            {{ post_form.hidden_tag() }}
+
             <div class="modal-header">
               <h5 class="modal-title" id="createPostModalLabel">New Post</h5>
               <button type="button" class="btn-close"

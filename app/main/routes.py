@@ -51,7 +51,7 @@ def index():
 
 @bp.route('/reset_db')
 def reset_db():
-    flash("Resetting database: deleting old data and repopulating with dummy data")
+    flash("Resetting database and seeding with demo music-lovers data…")
 
     # 1) Wipe all tables
     meta = db.metadata
@@ -59,63 +59,89 @@ def reset_db():
         db.session.execute(table.delete())
     db.session.commit()
 
-    # 2) Create users
-    u1 = User(username="Gavin", email="gavin@garver.org")
-    u1.set_password("Gavinpassword")
-    u2 = User(username="Jack",  email="jackreppert@gmail.com")
-    u2.set_password("Jackpassword")
-    u3 = User(username="Bob",   email="bob@email.com")
-    u3.set_password("Bobpassword")
+    # 2) Create some realistic users
+    alice = User(username="alice", email="alice@example.com")
+    alice.set_password("password123")
+    bob   = User(username="bob",   email="bob@rockrevival.org")
+    bob.set_password("securepass")
+    carol = User(username="carol", email="carol@indieartists.net")
+    carol.set_password("mypassword")
 
-    db.session.add_all([u1, u2, u3])
+    db.session.add_all([alice, bob, carol])
     db.session.commit()
 
-    # 3) Make some follow relationships
-    u1.follow(u2)   # Gavin follows Jack
-    u2.follow(u1)   # Jack follows Gavin
-    u3.follow(u1)   # Bob follows Gavin
+    # 3) Follow relationships
+    alice.follow(bob)    # Alice follows Bob
+    alice.follow(carol)  # Alice follows Carol
+    bob.follow(alice)    # Bob follows Alice
+    carol.follow(bob)    # Carol follows Bob
     db.session.commit()
 
-    # 4) Create groups
-    g1 = Group(name="The Creators", bio="We built this app")
-    g2 = Group(name="The Created",  bio="Here to test & give feedback")
-    g3 = Group(name="Jack's Circle", bio="Jack's special crew")
+    # 4) Create some music-themed groups
+    g1 = Group(name="Jazz Enthusiasts", bio="Discussing the smooth sounds of jazz.")
+    g2 = Group(name="Rock Revival",     bio="Bringing classic rock back to life.")
+    g3 = Group(name="Indie Artists",    bio="Sharing indie music and art.")
 
     db.session.add_all([g1, g2, g3])
     db.session.commit()
 
-    # 5) Assign members to groups
-    gm1 = GroupMembers(user_id=u1.id, group_id=g1.id, role="admin")
-    gm2 = GroupMembers(user_id=u2.id, group_id=g1.id, role="member")
-    gm3 = GroupMembers(user_id=u3.id, group_id=g2.id, role="admin")
-    gm4 = GroupMembers(user_id=u2.id, group_id=g3.id, role="admin")
+    # 5) Assign members & admins in groups
+    gm1 = GroupMembers(user_id=alice.id, group_id=g1.id, role="admin")
+    gm2 = GroupMembers(user_id=bob.id,   group_id=g1.id, role="member")
+    gm3 = GroupMembers(user_id=bob.id,   group_id=g2.id, role="admin")
+    gm4 = GroupMembers(user_id=carol.id, group_id=g3.id, role="admin")
+
     db.session.add_all([gm1, gm2, gm3, gm4])
     db.session.commit()
 
-    # 6) Some users follow groups
-    gf1 = GroupFollowers(user_id=u3.id, group_id=g1.id)  # Bob follows g1
-    gf2 = GroupFollowers(user_id=u1.id, group_id=g2.id)  # Gavin follows g2
+    # 6) Group followers
+    gf1 = GroupFollowers(user_id=carol.id, group_id=g1.id)  # Carol follows Jazz Enthusiasts
+    gf2 = GroupFollowers(user_id=alice.id, group_id=g3.id)  # Alice follows Indie Artists
+
     db.session.add_all([gf1, gf2])
     db.session.commit()
 
-    # 7) Create posts (some personal, some in groups)
-    p1 = Post(header="Gavin’s first post", body="Hello from Gavin!", author=u1)
-    p2 = Post(header="Jack’s news",    body="Jack just joined our group", author=u2, group=g1)
-    p3 = Post(header="Bob asks",       body="How do I reset the DB?", author=u3)
-    p4 = Post(header="Group shout",    body="Welcome new members!", author=u1, group=g1)
-    p5 = Post(header="Circle chat",    body="Jack's inner circle discussion", author=u2, group=g3)
+    # 7) Create a mix of personal & group posts
+    p1 = Post(
+        header="Exploring Miles Davis",
+        body="Anyone listened to 'Kind of Blue'? Thoughts?",
+        author=alice, group=g1
+    )
+    p2 = Post(
+        header="Rock Cover Release",
+        body="Just dropped my cover of 'Stairway to Heaven'—feedback welcome!",
+        author=bob, group=g2
+    )
+    p3 = Post(
+        header="EP Launch",
+        body="My debut indie EP is out now on all streaming platforms!",
+        author=carol, group=g3
+    )
+    p4 = Post(
+        header="Random Thought",
+        body="Does anyone here play the piano? I'm looking for tips!",
+        author=alice
+    )
+    p5 = Post(
+        header="Live Jazz This Weekend",
+        body="Downtown club hosting a live set—who's in?",
+        author=bob, group=g1
+    )
 
     db.session.add_all([p1, p2, p3, p4, p5])
     db.session.commit()
 
-    # 8) Comments and a nested reply
-    c1 = Comment(body="Nice post, Gavin!", author=u2, post=p1)
-    c2 = Comment(body="Thanks Jack!",      author=u1, post=p1, parent=c1)
-    c3 = Comment(body="Welcome all!",       author=u3, post=p4)
-    db.session.add_all([c1, c2, c3])
+    # 8) Seed some comments & nested replies
+    c1 = Comment(body="Absolutely a masterpiece!", author=bob,   post=p1)
+    c2 = Comment(body="I'll give it a listen tonight.",   author=carol, post=p1, parent=c1)
+    c3 = Comment(body="Congrats on the EP launch!",      author=alice, post=p3)
+    c4 = Comment(body="I love jazz piano too—check out Bill Evans.", author=carol, post=p4)
+
+    db.session.add_all([c1, c2, c3, c4])
     db.session.commit()
 
-    return redirect(url_for('index'))
+    return redirect(url_for('main.index'))
+
 
 @bp.route('/group/create', methods=['POST'])
 @login_required
@@ -297,25 +323,29 @@ def delete_post(post_id):
 @bp.route('/comment/<int:comment_id>/edit', methods=['POST'])
 @login_required
 def edit_comment(comment_id):
-    c = Comment.query.get_or_404(comment_id)
-    if c.author != current_user:
+    comment = Comment.query.get_or_404(comment_id)
+    if comment.author != current_user:
         abort(403)
 
-    # Grab the new body directly
     new_body = request.form.get('comment_body', '').strip()
     if not new_body:
-        return jsonify(success=False, error='Empty comment'), 400
+        if request.is_xhr:
+            return jsonify(success=False, error="Comment body can’t be empty"), 400
+        flash("Comment body can’t be empty", "danger")
+        return redirect(request.referrer or url_for('main.index'))
 
-    c.body = new_body
+    comment.body = new_body
     db.session.commit()
 
-    # If it's an AJAX request, return JSON
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return jsonify(success=True, comment_id=c.id, body=c.body)
+        return jsonify(
+            success=True,
+            comment_id=comment.id,
+            body=new_body
+        )
 
-    # Fallback (non-AJAX)
-    flash('Comment updated.', 'success')
-    return redirect(request.referrer or url_for('index'))
+    flash("Comment updated", "success")
+    return redirect(request.referrer or url_for('main.index'))
 
 @bp.route('/comment/<int:comment_id>/delete', methods=['POST'])
 @login_required
