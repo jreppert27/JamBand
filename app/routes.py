@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, timezone
 from urllib.parse import urlsplit
-from flask import render_template, flash, redirect, url_for, request, abort, current_app
+from flask import render_template, jsonify, flash, redirect, url_for, request, abort, current_app
 from flask_login import login_user, logout_user, current_user, login_required
 import sqlalchemy as sa
 from app import app, db
@@ -15,76 +15,105 @@ app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'uploads')
 @app.route('/reset_db')
 def reset_db():
     flash("Resetting database: deleting old data and repopulating with dummy data")
+
+    # 1) Wipe all tables
     meta = db.metadata
     for table in reversed(meta.sorted_tables):
-        print(f'Clearing table {table}')
         db.session.execute(table.delete())
     db.session.commit()
 
-    # Create users
+    # 2) Create users
     u1 = User(username="Gavin", email="gavin@garver.org")
     u1.set_password("Gavinpassword")
-
-    u2 = User(username="Jack", email="jackreppert@gmail.com")
+    u2 = User(username="Jack",  email="jackreppert@gmail.com")
     u2.set_password("Jackpassword")
-
-    u3 = User(username="Bob", email="bob@email.com")
+    u3 = User(username="Bob",   email="bob@email.com")
     u3.set_password("Bobpassword")
 
     db.session.add_all([u1, u2, u3])
     db.session.commit()
 
-    # Create some posts
-    p1 = Post(header="My first post", body="This is my first post", author=u1)
-    p2 = Post(header="Cool thing",   body="This is a cool thing here", author=u2)
-    p3 = Post(header="My Second post", body="This is my second post", author=u1)
-    p4 = Post(header="Hello world!", body="Hello there", author=u3)
-    p5 = Post(header="Hey there!", body="Howdy!", author=u1)
-
-    db.session.add_all([p1, p2, p3, p4, p5])
+    # 3) Make some follow relationships
+    u1.follow(u2)   # Gavin follows Jack
+    u2.follow(u1)   # Jack follows Gavin
+    u3.follow(u1)   # Bob follows Gavin
     db.session.commit()
 
-    # Create groups
-    g1 = Group(name='The creators', bio='We made this', members=[u1, u2])     # Gavin & Jack
-    g2 = Group(name='The created', bio='We were made here', members=[u3])         # Bob
-    g3 = Group(name="Jack's Group", bio="A special group for Jack", members=[u2])         # Jack
+    # 4) Create groups
+    g1 = Group(name="The Creators", bio="We built this app")
+    g2 = Group(name="The Created",  bio="Here to test & give feedback")
+    g3 = Group(name="Jack's Circle", bio="Jack's special crew")
 
     db.session.add_all([g1, g2, g3])
     db.session.commit()
 
+    # 5) Assign members to groups
+    gm1 = GroupMembers(user_id=u1.id, group_id=g1.id, role="admin")
+    gm2 = GroupMembers(user_id=u2.id, group_id=g1.id, role="member")
+    gm3 = GroupMembers(user_id=u3.id, group_id=g2.id, role="admin")
+    gm4 = GroupMembers(user_id=u2.id, group_id=g3.id, role="admin")
+    db.session.add_all([gm1, gm2, gm3, gm4])
+    db.session.commit()
+
+    # 6) Some users follow groups
+    gf1 = GroupFollowers(user_id=u3.id, group_id=g1.id)  # Bob follows g1
+    gf2 = GroupFollowers(user_id=u1.id, group_id=g2.id)  # Gavin follows g2
+    db.session.add_all([gf1, gf2])
+    db.session.commit()
+
+    # 7) Create posts (some personal, some in groups)
+    p1 = Post(header="Gavin’s first post", body="Hello from Gavin!", author=u1)
+    p2 = Post(header="Jack’s news",    body="Jack just joined our group", author=u2, group=g1)
+    p3 = Post(header="Bob asks",       body="How do I reset the DB?", author=u3)
+    p4 = Post(header="Group shout",    body="Welcome new members!", author=u1, group=g1)
+    p5 = Post(header="Circle chat",    body="Jack's inner circle discussion", author=u2, group=g3)
+
+    db.session.add_all([p1, p2, p3, p4, p5])
+    db.session.commit()
+
+    # 8) Comments and a nested reply
+    c1 = Comment(body="Nice post, Gavin!", author=u2, post=p1)
+    c2 = Comment(body="Thanks Jack!",      author=u1, post=p1, parent=c1)
+    c3 = Comment(body="Welcome all!",       author=u3, post=p4)
+    db.session.add_all([c1, c2, c3])
+    db.session.commit()
+
     return redirect(url_for('index'))
 
-
-
-@app.route('/', methods=['GET', 'POST'])
+app.route('/', methods=['GET', 'POST'])
 @app.route('/index', methods=['GET', 'POST'])
+@login_required
 def index():
     form = PostForm()
-    if current_user.is_authenticated and form.validate_on_submit():
+    if form.validate_on_submit():
         post = Post(
-            header=form.header.data,
-            body=form.post.data,
+            header=form.header.data or "New Post",
+            body=form.body.data,
             author=current_user
         )
+        # handle media & group_id exactly as before...
         db.session.add(post)
         db.session.commit()
         flash('Your post is now live!')
         return redirect(url_for('index'))
 
-    page = request.args.get('page', 1, type=int)
-    if current_user.is_authenticated:
-        posts = db.paginate(current_user.following_posts(), page=page,
-                            per_page=app.config['POSTS_PER_PAGE'], error_out=False)
+    # Decide which posts to show
+    view = request.args.get('view', 'following')
+    if view == 'following':
+        query = current_user.following_posts()
     else:
-        posts = db.paginate(
-            sa.select(Post).order_by(Post.timestamp.desc()),
-            page=page, per_page=app.config['POSTS_PER_PAGE'], error_out=False
-        )
-    next_url = url_for('index', page=posts.next_num) if posts.has_next else None
-    prev_url = url_for('index', page=posts.prev_num) if posts.has_prev else None
-    return render_template('index.html', title='Home', form=form,
-                           posts=posts, next_url=next_url,
-                           prev_url=prev_url)
+        query = sa.select(Post).order_by(Post.timestamp.desc())
+
+    # Fetch ALL matching posts
+    posts = db.session.scalars(query).all()
+
+    return render_template(
+        'index.html',
+        title='Home',
+        form=form,
+        posts=posts,
+        view=view
+    )
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -219,6 +248,13 @@ def create_post():
         # *** assign to post.media_path ***
         post.media_path = filename
 
+    group_id = request.form.get('group_id').strip()
+    if group_id:
+        try:
+            post.group_id = int(group_id)
+        except ValueError:
+            pass
+
     db.session.add(post)
     db.session.commit()
     flash('Your post has been created!', 'success')
@@ -236,4 +272,146 @@ def comment_post(post_id):
     db.session.add(c)
     db.session.commit()
     flash('Your comment was posted.', 'success')
+    return redirect(request.referrer or url_for('index'))
+
+@app.route('/post/<int:post_id>/edit', methods=['POST'])
+@login_required
+def edit_post(post_id):
+    post = Post.query.get_or_404(post_id)
+    if post.author != current_user:
+        abort(403)
+
+    # grab the form values
+    new_header = request.form.get('header', '').strip()
+    new_body   = request.form.get('body', '').strip()
+
+    # validate
+    if not new_header or not new_body:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify(success=False, error='Both title and body are required'), 400
+        flash('Both title and body are required.', 'danger')
+        return redirect(request.referrer or url_for('index'))
+
+    # apply changes
+    post.header = new_header
+    post.body   = new_body
+    db.session.commit()
+
+    # return JSON if AJAX
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify(
+            success=True,
+            post_id=post.id,
+            header=post.header,
+            body=post.body
+        )
+
+    # otherwise a normal redirect
+    flash('Your post was updated.', 'success')
+    return redirect(request.referrer or url_for('index'))
+
+
+@app.route('/post/<int:post_id>/delete', methods=['POST'])
+@login_required
+def delete_post(post_id):
+    post = Post.query.get_or_404(post_id)
+    if post.author != current_user:
+        abort(403)
+    db.session.delete(post)
+    db.session.commit()
+    flash('Post deleted.', 'info')
+    return redirect(request.referrer or url_for('index'))
+
+@app.route('/comment/<int:comment_id>/edit', methods=['POST'])
+@login_required
+def edit_comment(comment_id):
+    c = Comment.query.get_or_404(comment_id)
+    if c.author != current_user:
+        abort(403)
+
+    # Grab the new body directly
+    new_body = request.form.get('comment_body', '').strip()
+    if not new_body:
+        return jsonify(success=False, error='Empty comment'), 400
+
+    c.body = new_body
+    db.session.commit()
+
+    # If it's an AJAX request, return JSON
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify(success=True, comment_id=c.id, body=c.body)
+
+    # Fallback (non-AJAX)
+    flash('Comment updated.', 'success')
+    return redirect(request.referrer or url_for('index'))
+
+@app.route('/comment/<int:comment_id>/delete', methods=['POST'])
+@login_required
+def delete_comment(comment_id):
+    comment = Comment.query.get_or_404(comment_id)
+    if comment.author != current_user:
+        abort(403)
+    db.session.delete(comment)
+    db.session.commit()
+    flash('Comment deleted.', 'info')
+    return redirect(request.referrer or url_for('index'))
+
+from flask import request, jsonify
+
+@app.route('/comment/<int:comment_id>/reply', methods=['POST'])
+@login_required
+def reply_comment(comment_id):
+    parent = Comment.query.get_or_404(comment_id)
+    body = request.form.get('comment_body','').strip()
+    if not body:
+        return jsonify(success=False, error='Empty reply'), 400
+
+    reply = Comment(
+        body=body,
+        author=current_user,
+        post=parent.post,
+        parent=parent
+    )
+    db.session.add(reply)
+    db.session.commit()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # return the minimal data needed to render the new reply
+        return jsonify(
+            success=True,
+            parent_id=parent.id,
+            reply_id=reply.id,
+            body=reply.body,
+            author_username=current_user.username,
+            timestamp=reply.timestamp.strftime('%b %d, %Y %H:%M')
+        )
+
+    flash('Your reply was posted.', 'success')
+    return redirect(request.referrer or url_for('index'))
+
+@app.route('/group/create', methods=['POST'])
+@login_required
+def create_group():
+    form = GroupForm()
+    if form.validate_on_submit():
+        new_group = Group(
+            name=form.name.data.strip(),
+            bio=form.bio.data.strip()
+        )
+        db.session.add(new_group)
+        db.session.commit()
+        # Add the creator as admin
+        gm = GroupMembers(
+            user_id=current_user.id,
+            group_id=new_group.id,
+            role='admin'
+        )
+        db.session.add(gm)
+        db.session.commit()
+        flash(f'Group "{new_group.name}" created!', 'success')
+        return redirect(url_for('group', group_id=new_group.id))
+    # If validation fails, re-display homepage with form errors
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify(success=False, errors=form.errors), 400
+    flash('Failed to create group. Please fix the errors below.', 'danger')
     return redirect(request.referrer or url_for('index'))

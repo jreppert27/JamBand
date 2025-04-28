@@ -140,27 +140,42 @@ class Post(db.Model):
 
 
 class Comment(db.Model):
-    id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    body: so.Mapped[str] = so.mapped_column(sa.String(140))
-    timestamp: so.Mapped[datetime] = so.mapped_column(index=True, default=lambda: datetime.now(timezone.utc))
-    post_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(Post.id), index=True)
-    user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id), index=True)
-    group_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey('group.id'), index=True, nullable=True)
+    id = db.Column(db.Integer, primary_key=True)
+    body = db.Column(db.String(140))
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=True)
+    group = db.relationship('Group', back_populates='comments')
+    parent_id = db.Column(db.Integer, db.ForeignKey('comment.id'), nullable=True)
 
-    post: so.Mapped[Post] = so.relationship(back_populates='comments')
-    author: so.Mapped[User] = so.relationship(back_populates='comments')
-    group: so.Mapped[Optional['Group']] = so.relationship(back_populates='comments')
+    # relationships
+    post = db.relationship('Post', back_populates='comments')
+    author = db.relationship('User', back_populates='comments')
+    children = db.relationship(
+        'Comment',
+        backref=db.backref('parent', remote_side=[id]),
+        cascade='all, delete-orphan'
+    )
 
     def __repr__(self):
         return '<Comment {}>'.format(self.body)
 
 
 class Group(db.Model):
-    id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    name: so.Mapped[str] = so.mapped_column(sa.String(64), index=True, unique=True)
-    bio: so.Mapped[Optional[str]] = so.mapped_column(sa.String(256))
-    posts: so.WriteOnlyMapped[Post] = so.relationship(back_populates='group')
-    comments: so.WriteOnlyMapped[Comment] = so.relationship(back_populates='group')
+    id   = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64), unique=True, index=True)
+    bio  = db.Column(db.String(256))
+    posts: so.Mapped[List['Post']] = so.relationship(
+        back_populates='group',
+        order_by="Post.timestamp.desc()"
+    )
+    comments: so.Mapped[List['Comment']] = so.relationship(
+        'Comment',
+        back_populates='group',
+        foreign_keys='Comment.group_id',
+        cascade='all, delete-orphan'
+    )
     members: so.Mapped[List['User']] = so.relationship(
         secondary='group_members', back_populates='groups')
     followers: so.WriteOnlyMapped['User'] = so.relationship(
@@ -172,6 +187,10 @@ class Group(db.Model):
 
     def __repr__(self):
         return '<Group {}>'.format(self.name)
+
+    def avatar(self, size):
+        digest = md5(self.name.lower().encode('utf-8')).hexdigest()
+        return f'https://www.gravatar.com/avatar/{digest}?d=identicon&s={size}'
 
 
 class GroupMembers(db.Model):

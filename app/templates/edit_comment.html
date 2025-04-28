@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Edit Comment</h2>
+  <form method="post">
+    {{ form.hidden_tag() }}
+    <div class="mb-3">
+      {{ form.comment_body.label(class="form-label") }}
+      {{ form.comment_body(class="form-control", rows=3) }}
+    </div>
+    <button type="submit" class="btn btn-primary">Save Changes</button>
+    <a href="{{ request.referrer or url_for('index') }}" class="btn btn-secondary">Cancel</a>
+  </form>
+</div>
+{% endblock %}

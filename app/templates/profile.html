@@ -42,6 +42,11 @@
     {% endif %}
   </div>
 
+  {% if current_user.id == user.id %}
+      <button type="submit" class="btn btn-primary mt-3">Save Changes</button>
+    </form>
+  {% endif %}
+
   <!-- Posts in a Pinterest-style masonry grid -->
   <style>
     .pinterest-container {
@@ -58,29 +63,13 @@
 
   <h2 class="mt-5 mb-4">Posts</h2>
   <div class="pinterest-container">
-    {% if user.posts %}
-      {% for post in user.posts %}
-        <div class="pin-card">
-          <div class="card shadow-sm h-100">
-            {% if post.media_path %}
-              <img
-                src="{{ url_for('static', filename='uploads/' ~ post.media_path) }}"
-                class="card-img-top"
-                style="object-fit: cover; max-height: 200px;"
-                alt="Post media"
-              >
-            {% endif %}
-            <div class="card-body">
-              <h5 class="card-title">{{ post.header }}</h5>
-              <p class="card-text">{{ post.body }}</p>
-              <small class="text-muted">{{ post.timestamp.strftime('%b %d, %Y') }}</small>
-            </div>
-          </div>
-        </div>
-      {% endfor %}
+    {% for post in user.posts if post.group is none %}
+      <div class="pin-card">
+        {% include '_post.html' %}
+      </div>
     {% else %}
-      <p>No posts to display.</p>
-    {% endif %}
+      <p>No personal posts to display.</p>
+    {% endfor %}
   </div>
 
   <!-- Groups -->
@@ -97,12 +86,6 @@
       {% endfor %}
     </div>
   </div>
-
-  <!-- Save Button & Close Form -->
-  {% if current_user.id == user.id %}
-      <button type="submit" class="btn btn-primary mt-3">Save Changes</button>
-    </form>
-  {% endif %}
 
   <!-- Bottom spacer -->
   <div class="mb-5"></div>
