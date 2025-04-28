@@ -1,7 +1,12 @@
 {# templates/_post.html #}
-{% set media_url = post.media_path and url_for('static', filename='uploads/'~post.media_path) %}
-{% if media_url %}
-  {% set ext = post.media_path.rsplit('.',1)[-1].lower() %}
+
+{# — Compute media_url and ext only if there’s a media_path —#}
+{% if post.media_path %}
+  {% set media_url = url_for('static', filename='uploads/' ~ post.media_path) %}
+  {% set ext = post.media_path.rsplit('.', 1)[-1].lower() %}
+{% else %}
+  {% set media_url = '' %}
+  {% set ext = '' %}
 {% endif %}
 
 {# —— Pin-card that triggers modal —— #}
@@ -12,16 +17,16 @@
   <div class="card shadow-sm h-100">
     {# Media preview #}
     {% if media_url %}
-      {% if ext in ['png','jpg','jpeg','gif'] %}
+      {% if ext in ['png', 'jpg', 'jpeg', 'gif'] %}
         <img src="{{ media_url }}" class="card-img-top"
              style="object-fit:cover; max-height:200px;" alt="Media">
-      {% elif ext in ['mp3','wav','ogg'] %}
+      {% elif ext in ['mp3', 'wav', 'ogg'] %}
         <div class="p-3">
           <audio controls class="w-100">
             <source src="{{ media_url }}" type="audio/{{ ext }}">
           </audio>
         </div>
-      {% elif ext in ['mp4','webm','ogg'] %}
+      {% elif ext in ['mp4', 'webm', 'ogg'] %}
         <video controls class="card-img-top"
                style="object-fit:cover; max-height:200px; width:100%;">
           <source src="{{ media_url }}" type="video/{{ ext }}">
@@ -37,24 +42,24 @@
     <div class="card-footer bg-white">
       <div class="d-flex align-items-center">
         {% if post.group %}
-          <a href="{{ url_for('group', group_id=post.group.id) }}" class="me-2">
+          <a href="{{ url_for('main.group', group_id=post.group.id) }}" class="me-2">
             <img src="{{ post.group.avatar(32) }}"
                  class="rounded-circle"
                  style="width:32px;height:32px;"
                  alt="{{ post.group.name }}">
           </a>
-          <a href="{{ url_for('group', group_id=post.group.id) }}"
+          <a href="{{ url_for('main.group', group_id=post.group.id) }}"
              class="fw-semibold text-decoration-none">
             {{ post.group.name }}
           </a>
         {% else %}
-          <a href="{{ url_for('user', username=post.author.username) }}" class="me-2">
+          <a href="{{ url_for('main.user', username=post.author.username) }}" class="me-2">
             <img src="{{ post.author.avatar(32) }}"
                  class="rounded-circle"
                  style="width:32px;height:32px;"
                  alt="{{ post.author.username }}">
           </a>
-          <a href="{{ url_for('user', username=post.author.username) }}"
+          <a href="{{ url_for('main.user', username=post.author.username) }}"
              class="fw-semibold text-decoration-none">
             {{ post.author.username }}
           </a>
@@ -72,36 +77,33 @@
       {# — Header with Inline Edit — #}
       <div class="modal-header align-items-start">
         <div class="flex-grow-1">
-          {# Display view #}
           <div id="post-display-{{ post.id }}">
             <h5 class="modal-title">{{ post.header }}</h5>
             <p>{{ post.body }}</p>
           </div>
-
-          {# Edit form for owner (AJAX) #}
           {% if post.author.id == current_user.id %}
-          <form id="post-edit-form-{{ post.id }}"
-                class="d-none ajax-form"
-                method="post"
-                action="{{ url_for('edit_post', post_id=post.id) }}"
-                data-type="post"
-                data-id="{{ post.id }}">
-            {{ form.hidden_tag() }}
-            <div class="mb-2">
-              <input type="text" name="header" class="form-control"
-                     value="{{ post.header }}" required>
-            </div>
-            <div class="mb-2">
-              <textarea name="body" class="form-control" rows="3"
-                        required>{{ post.body }}</textarea>
-            </div>
-            <button type="submit" class="btn btn-sm btn-primary">Save</button>
-            <button type="button"
-                    class="btn btn-sm btn-secondary cancel-post-edit"
-                    data-post-id="{{ post.id }}">
-              Cancel
-            </button>
-          </form>
+            <form id="post-edit-form-{{ post.id }}"
+                  class="d-none ajax-form"
+                  method="post"
+                  action="{{ url_for('main.edit_post', post_id=post.id) }}"
+                  data-type="post"
+                  data-id="{{ post.id }}">
+              {{ form.hidden_tag() }}
+              <div class="mb-2">
+                <input type="text" name="header" class="form-control"
+                       value="{{ post.header }}" required>
+              </div>
+              <div class="mb-2">
+                <textarea name="body" class="form-control" rows="3"
+                          required>{{ post.body }}</textarea>
+              </div>
+              <button type="submit" class="btn btn-sm btn-primary">Save</button>
+              <button type="button"
+                      class="btn btn-sm btn-secondary cancel-post-edit"
+                      data-post-id="{{ post.id }}">
+                Cancel
+              </button>
+            </form>
           {% endif %}
         </div>
 
@@ -126,7 +128,7 @@
                 </button>
               </li>
               <li>
-                <form action="{{ url_for('delete_post', post_id=post.id) }}" method="post" class="m-0">
+                <form action="{{ url_for('main.delete_post', post_id=post.id) }}" method="post" class="m-0">
                   <button type="submit" class="dropdown-item text-danger">
                     Delete
                   </button>
@@ -139,7 +141,7 @@
                 </button>
               </li>
               <li>
-                <a class="dropdown-item" href="{{ url_for('user', username=post.author.username) }}">
+                <a class="dropdown-item" href="{{ url_for('main.user', username=post.author.username) }}">
                   Profile
                 </a>
               </li>
@@ -153,15 +155,14 @@
 
       {# — Body (media + comments) — #}
       <div class="modal-body">
-        {# Media full-size #}
         {% if media_url %}
-          {% if ext in ['png','jpg','jpeg','gif'] %}
+          {% if ext in ['png', 'jpg', 'jpeg', 'gif'] %}
             <img src="{{ media_url }}" class="img-fluid mb-3" alt="Media">
-          {% elif ext in ['mp3','wav','ogg'] %}
+          {% elif ext in ['mp3', 'wav', 'ogg'] %}
             <audio controls class="w-100 mb-3">
               <source src="{{ media_url }}" type="audio/{{ ext }}">
             </audio>
-          {% elif ext in ['mp4','webm','ogg'] %}
+          {% elif ext in ['mp4', 'webm', 'ogg'] %}
             <video controls class="img-fluid mb-3">
               <source src="{{ media_url }}" type="video/{{ ext }}">
             </video>
@@ -171,199 +172,197 @@
         <hr>
         <h6>Comments</h6>
         <ul class="list-group mb-3">
-          {# Top‐level comments #}
-          {% for comment in post.comments if comment.parent_id is none %}
-            <li class="list-group-item" id="comment-{{ comment.id }}">
-              <div class="d-flex justify-content-between align-items-start">
-                <div>
-                  <strong>
-                    <a href="{{ url_for('user', username=comment.author.username) }}">
-                      {{ comment.author.username }}
-                    </a>
-                  </strong>
-                  <small class="text-muted ms-2">
-                    {{ comment.timestamp.strftime('%b %d, %Y %H:%M') }}
-                  </small>
-                </div>
-                <div class="dropdown">
-                  <button class="btn btn-sm btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                    <i class="bi bi-three-dots"></i>
-                  </button>
-                  <ul class="dropdown-menu dropdown-menu-end">
-                    {% if comment.author.id == current_user.id %}
-                      <li>
-                        <button class="dropdown-item edit-comment-btn" data-comment-id="{{ comment.id }}">
-                          Edit
-                        </button>
-                      </li>
-                      <li>
-                        <button class="dropdown-item reply-btn" data-comment-id="{{ comment.id }}">
-                          Reply
-                        </button>
-                      </li>
-                      <li>
-                        <form action="{{ url_for('delete_comment', comment_id=comment.id) }}" method="post" class="m-0">
-                          <button type="submit" class="dropdown-item text-danger">
-                            Delete
+          {# iterate all comments and only render top‐level ones #}
+          {% for comment in post.comments %}
+            {% if comment.parent_id is none %}
+              <li class="list-group-item" id="comment-{{ comment.id }}">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div>
+                    <strong>
+                      <a href="{{ url_for('main.user', username=comment.author.username) }}">
+                        {{ comment.author.username }}
+                      </a>
+                    </strong>
+                    <small class="text-muted ms-2">
+                      {{ comment.timestamp.strftime('%b %d, %Y %H:%M') }}
+                    </small>
+                  </div>
+                  <div class="dropdown">
+                    <button class="btn btn-sm btn-light dropdown-toggle"
+                            type="button" data-bs-toggle="dropdown">
+                      <i class="bi bi-three-dots"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                      {% if comment.author.id == current_user.id %}
+                        <li>
+                          <button class="dropdown-item edit-comment-btn" data-comment-id="{{ comment.id }}">
+                            Edit
                           </button>
-                        </form>
-                      </li>
-                    {% else %}
-                      <li>
-                        <button class="dropdown-item reply-btn" data-comment-id="{{ comment.id }}">
-                          Reply
-                        </button>
-                      </li>
-                      <li>
-                        <a class="dropdown-item" href="{{ url_for('user', username=comment.author.username) }}">
-                          Profile
-                        </a>
-                      </li>
-                    {% endif %}
-                  </ul>
+                        </li>
+                        <li>
+                          <button class="dropdown-item reply-btn" data-comment-id="{{ comment.id }}">
+                            Reply
+                          </button>
+                        </li>
+                        <li>
+                          <form action="{{ url_for('main.delete_comment', comment_id=comment.id) }}"
+                                method="post" class="m-0">
+                            <button type="submit" class="dropdown-item text-danger">
+                              Delete
+                            </button>
+                          </form>
+                        </li>
+                      {% else %}
+                        <li>
+                          <button class="dropdown-item reply-btn" data-comment-id="{{ comment.id }}">
+                            Reply
+                          </button>
+                        </li>
+                        <li>
+                          <a class="dropdown-item"
+                             href="{{ url_for('main.user', username=comment.author.username) }}">
+                            Profile
+                          </a>
+                        </li>
+                      {% endif %}
+                    </ul>
+                  </div>
                 </div>
 
+                <div id="comment-display-{{ comment.id }}">
+                  <p class="mb-1">{{ comment.body }}</p>
+                </div>
+                {% if comment.author.id == current_user.id %}
+                  <form id="comment-edit-form-{{ comment.id }}"
+                        class="d-none ajax-form"
+                        method="post"
+                        action="{{ url_for('main.edit_comment', comment_id=comment.id) }}"
+                        data-type="comment"
+                        data-id="{{ comment.id }}">
+                    {{ form.hidden_tag() }}
+                    <textarea name="comment_body"
+                              class="form-control mb-2"
+                              rows="2" required>{{ comment.body }}</textarea>
+                    <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                    <button type="button"
+                            class="btn btn-sm btn-secondary cancel-comment-edit"
+                            data-comment-id="{{ comment.id }}">
+                      Cancel
+                    </button>
+                  </form>
+                {% endif %}
 
-              {# Display vs Edit for comment #}
-              <div id="comment-display-{{ comment.id }}">
-                <p class="mb-1">{{ comment.body }}</p>
-              </div>
-              {% if comment.author.id == current_user.id %}
-              <form id="comment-edit-form-{{ comment.id }}"
-                    class="d-none ajax-form"
-                    method="post"
-                    action="{{ url_for('edit_comment', comment_id=comment.id) }}"
-                    data-type="comment"
-                    data-id="{{ comment.id }}">
-                {{ form.hidden_tag() }}
-                <textarea name="comment_body"
-                          class="form-control mb-2"
-                          rows="2" required>{{ comment.body }}</textarea>
-                <button type="submit" class="btn btn-sm btn-primary">Save</button>
-                <button type="button"
-                        class="btn btn-sm btn-secondary cancel-comment-edit"
-                        data-comment-id="{{ comment.id }}">
-                  Cancel
-                </button>
-              </form>
-              {% endif %}
-
-              {# Replies container #}
-              <ul class="list-group ms-4 mt-2" id="reply-list-{{ comment.id }}">
-                {% for reply in comment.children %}
-                  <li class="list-group-item" id="comment-{{ reply.id }}">
-                    <div class="d-flex justify-content-between align-items-start">
-                      <div>
-                        <strong>
-                          <a href="{{ url_for('user', username=reply.author.username) }}">
-                            {{ reply.author.username }}
-                          </a>
-                        </strong>
-                        <small class="text-muted ms-2">
-                          {{ reply.timestamp.strftime('%b %d, %Y %H:%M') }}
-                        </small>
-                      </div>
-                      <div class="dropdown">
-                        <button class="btn btn-sm btn-light dropdown-toggle"
-                                type="button" data-bs-toggle="dropdown">
-                          <i class="bi bi-three-dots"></i>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                          {% if reply.author.id == current_user.id %}
+                {# Replies container #}
+                <ul class="list-group ms-4 mt-2" id="reply-list-{{ comment.id }}">
+                  {% for reply in comment.children %}
+                    <li class="list-group-item" id="comment-{{ reply.id }}">
+                      <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                          <strong>
+                            <a href="{{ url_for('main.user', username=reply.author.username) }}">
+                              {{ reply.author.username }}
+                            </a>
+                          </strong>
+                          <small class="text-muted ms-2">
+                            {{ reply.timestamp.strftime('%b %d, %Y %H:%M') }}
+                          </small>
+                        </div>
+                        <div class="dropdown">
+                          <button class="btn btn-sm btn-light dropdown-toggle"
+                                  type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-three-dots"></i>
+                          </button>
+                          <ul class="dropdown-menu dropdown-menu-end">
+                            {% if reply.author.id == current_user.id %}
+                              <li>
+                                <button class="dropdown-item edit-comment-btn"
+                                        data-comment-id="{{ reply.id }}">
+                                  Edit
+                                </button>
+                              </li>
+                              <li>
+                                <form action="{{ url_for('main.delete_comment', comment_id=reply.id) }}"
+                                      method="post" class="m-0">
+                                  <button type="submit"
+                                          class="dropdown-item text-danger">
+                                    Delete
+                                  </button>
+                                </form>
+                              </li>
+                            {% endif %}
                             <li>
-                              <button class="dropdown-item edit-comment-btn"
+                              <button class="dropdown-item reply-btn"
                                       data-comment-id="{{ reply.id }}">
-                                Edit
+                                Reply
                               </button>
                             </li>
-                            <li>
-                              <form action="{{ url_for('delete_comment', comment_id=reply.id) }}"
-                                    method="post" class="m-0">
-                                <button type="submit"
-                                        class="dropdown-item text-danger">
-                                  Delete
-                                </button>
-                              </form>
-                            </li>
-                          {% endif %}
-                          <li>
-                            <button class="dropdown-item reply-btn"
-                                    data-comment-id="{{ reply.id }}">
-                              Reply
-                            </button>
-                          </li>
-                        </ul>
+                          </ul>
+                        </div>
                       </div>
-                    </div>
 
-                    <div id="comment-display-{{ reply.id }}">
-                      <p class="mb-1">{{ reply.body }}</p>
-                    </div>
-                    {% if reply.author.id == current_user.id %}
-                    <form id="comment-edit-form-{{ reply.id }}"
-                          class="d-none ajax-form"
-                          method="post"
-                          action="{{ url_for('edit_comment', comment_id=reply.id) }}"
-                          data-type="comment"
-                          data-id="{{ reply.id }}">
-                      {{ form.hidden_tag() }}
-                      <textarea name="comment_body"
-                                class="form-control mb-2"
-                                rows="2" required>{{ reply.body }}</textarea>
-                      <button type="submit" class="btn btn-sm btn-primary">Save</button>
-                      <button type="button"
-                              class="btn btn-sm btn-secondary cancel-comment-edit"
-                              data-comment-id="{{ reply.id }}">
-                        Cancel
-                      </button>
-                    </form>
-                    {% endif %}
+                      <div id="comment-display-{{ reply.id }}">
+                        <p class="mb-1">{{ reply.body }}</p>
+                      </div>
+                      {% if reply.author.id == current_user.id %}
+                        <form id="comment-edit-form-{{ reply.id }}"
+                              class="d-none ajax-form"
+                              method="post"
+                              action="{{ url_for('main.edit_comment', comment_id=reply.id) }}"
+                              data-type="comment"
+                              data-id="{{ reply.id }}">
+                          {{ form.hidden_tag() }}
+                          <textarea name="comment_body"
+                                    class="form-control mb-2"
+                                    rows="2" required>{{ reply.body }}</textarea>
+                          <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                          <button type="button"
+                                  class="btn btn-sm btn-secondary cancel-comment-edit"
+                                  data-comment-id="{{ reply.id }}">
+                            Cancel
+                          </button>
+                        </form>
+                      {% endif %}
 
-                    {# Reply form for this nested comment #}
-                    <div class="reply-form mt-2 d-none"
-                         id="reply-form-{{ reply.id }}">
-                      <form class="ajax-form"
-                            data-type="reply"
-                            data-parent-id="{{ reply.id }}"
-                            action="{{ url_for('reply_comment', comment_id=reply.id) }}"
-                            method="post">
-                        {{ form.hidden_tag() }}
-                        <textarea name="comment_body"
-                                  class="form-control mb-2"
-                                  rows="2" required></textarea>
-                        <button type="submit" class="btn btn-sm btn-primary">
-                          Submit Reply
-                        </button>
-                      </form>
-                    </div>
-                  </li>
-                {% endfor %}
-              </ul>
+                      {# Reply form for this nested comment #}
+                      <div class="reply-form mt-2 d-none" id="reply-form-{{ reply.id }}">
+                        <form class="ajax-form"
+                              data-type="reply"
+                              data-parent-id="{{ reply.id }}"
+                              action="{{ url_for('main.reply_comment', comment_id=reply.id) }}"
+                              method="post">
+                          {{ form.hidden_tag() }}
+                          <textarea name="comment_body" class="form-control mb-2" rows="2" required></textarea>
+                          <button type="submit" class="btn btn-sm btn-primary">
+                            Submit Reply
+                          </button>
+                        </form>
+                      </div>
+                    </li>
+                  {% endfor %}
+                </ul>
 
-              {# Reply form for top-level comment #}
-              <div class="reply-form mt-2 d-none"
-                   id="reply-form-{{ comment.id }}">
-                <form class="ajax-form"
-                      data-type="reply"
-                      data-parent-id="{{ comment.id }}"
-                      action="{{ url_for('reply_comment', comment_id=comment.id) }}"
-                      method="post">
-                  {{ form.hidden_tag() }}
-                  <textarea name="comment_body"
-                            class="form-control mb-2"
-                            rows="2" required></textarea>
-                  <button type="submit" class="btn btn-sm btn-primary">
-                    Submit Reply
-                  </button>
-                </form>
-              </div>
-            </li>
+                {# Reply form for top-level comment #}
+                <div class="reply-form mt-2 d-none" id="reply-form-{{ comment.id }}">
+                  <form class="ajax-form"
+                        data-type="reply"
+                        data-parent-id="{{ comment.id }}"
+                        action="{{ url_for('main.reply_comment', comment_id=comment.id) }}"
+                        method="post">
+                    {{ form.hidden_tag() }}
+                    <textarea name="comment_body" class="form-control mb-2" rows="2" required></textarea>
+                    <button type="submit" class="btn btn-sm btn-primary">
+                      Submit Reply
+                    </button>
+                  </form>
+                </div>
+
+              </li>
+            {% endif %}
           {% else %}
             <li class="list-group-item text-muted">No comments yet.</li>
           {% endfor %}
         </ul>
       </div>
-
     </div>
   </div>
 </div>

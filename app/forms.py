@@ -4,8 +4,7 @@ from wtforms import StringField, PasswordField, BooleanField, SubmitField, \
 from wtforms.validators import ValidationError, DataRequired, Email, EqualTo, \
     Length, Optional
 import sqlalchemy as sa
-from app import db
-from app.models import User
+from app.models import *
 
 class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
@@ -74,6 +73,6 @@ class GroupForm(FlaskForm):
     )
     bio = TextAreaField(
         'Bio / Description',
-        validators=[Optional(), Length(max=256)]
+        validators=[DataRequired(), Length(max=256)]
     )
     submit = SubmitField('Create Group')

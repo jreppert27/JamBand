@@ -13,3 +13,6 @@ class Config:
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     ADMINS = ['jackreppert@gmail.com', 'gavin@garver.org']
     POSTS_PER_PAGE = 25
+    ELASTICSEARCH_URL = os.environ.get('ELASTICSEARCH_URL', None)
+    REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+    UPLOAD_FOLDER = os.path.join(basedir, 'app', 'static', 'uploads')

@@ -1,20 +1,19 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-
-from flask_migrate import Migrate              # <<–– add this
-from app import app, db
-import app
-import app.routes
+from app import create_app, db, bp
 from app.models import (
     User, Post, Comment,
     Group, GroupMembers, GroupFollowers,
     Tag, Tags
 )
 
+app = create_app()
+
 @app.shell_context_processor
 def make_shell_context():
     return {
         'sa': sa,
+        'bp': bp,
         'so': so,
         'db': db,
         'User': User,
@@ -26,3 +25,7 @@ def make_shell_context():
         'Tag': Tag,
         'Tags': Tags,
     }
+
+if __name__ == '__main__':
+    # pick host/port as you like; debug=True gives auto-reload + debug console
+    app.run(host='127.0.0.1', port=5000, debug=True)
