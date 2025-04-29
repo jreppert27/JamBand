@@ -5,6 +5,7 @@ from typing import Optional, List
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from flask_login import UserMixin
+from flask import url_for
 from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
 from app import app, db, login
@@ -29,6 +30,9 @@ class User(UserMixin, db.Model):
     about_me: so.Mapped[Optional[str]] = so.mapped_column(sa.String(140))
     last_seen: so.Mapped[Optional[datetime]] = so.mapped_column(
         default=lambda: datetime.now(timezone.utc))
+    # Add profile_picture_path field
+    profile_picture_path: so.Mapped[Optional[str]] = so.mapped_column(sa.String(256), nullable=True)
+    banner_path: so.Mapped[Optional[str]] = so.mapped_column(sa.String(256), nullable=True)
 
     posts: so.Mapped[List['Post']] = so.relationship(
         back_populates='author',
@@ -60,6 +64,10 @@ class User(UserMixin, db.Model):
         return check_password_hash(self.password_hash, password)
 
     def avatar(self, size):
+        # Check for custom profile picture first
+        if self.profile_picture_path:
+            return url_for('static', filename='uploads/' + self.profile_picture_path)
+        # Fall back to Gravatar
         digest = md5(self.email.lower().encode('utf-8')).hexdigest()
         return f'https://www.gravatar.com/avatar/{digest}?d=identicon&s={size}'
 

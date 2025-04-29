@@ -12,6 +12,7 @@ from werkzeug.utils import secure_filename
 
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'uploads')
 
+
 @app.route('/reset_db')
 def reset_db():
     flash("Resetting database: deleting old data and repopulating with dummy data")
@@ -36,7 +37,7 @@ def reset_db():
 
     # Create some posts
     p1 = Post(header="My first post", body="This is my first post", author=u1)
-    p2 = Post(header="Cool thing",   body="This is a cool thing here", author=u2)
+    p2 = Post(header="Cool thing", body="This is a cool thing here", author=u2)
     p3 = Post(header="My Second post", body="This is my second post", author=u1)
     p4 = Post(header="Hello world!", body="Hello there", author=u3)
     p5 = Post(header="Hey there!", body="Howdy!", author=u1)
@@ -45,15 +46,14 @@ def reset_db():
     db.session.commit()
 
     # Create groups
-    g1 = Group(name='The creators', bio='We made this', members=[u1, u2])     # Gavin & Jack
-    g2 = Group(name='The created', bio='We were made here', members=[u3])         # Bob
-    g3 = Group(name="Jack's Group", bio="A special group for Jack", members=[u2])         # Jack
+    g1 = Group(name='The creators', bio='We made this', members=[u1, u2])  # Gavin & Jack
+    g2 = Group(name='The created', bio='We were made here', members=[u3])  # Bob
+    g3 = Group(name="Jack's Group", bio="A special group for Jack", members=[u2])  # Jack
 
     db.session.add_all([g1, g2, g3])
     db.session.commit()
 
     return redirect(url_for('index'))
-
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -86,6 +86,7 @@ def index():
                            posts=posts, next_url=next_url,
                            prev_url=prev_url)
 
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -104,10 +105,12 @@ def login():
         return redirect(next_page)
     return render_template('login.html', title='Sign In', form=form)
 
+
 @app.route('/logout', methods=['GET', 'POST'])
 def logout():
     logout_user()
     return redirect(url_for('index'))
+
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -123,6 +126,7 @@ def register():
         return redirect(url_for('login'))
     return render_template('register.html', title='Register', form=form)
 
+
 @app.route('/reset_password_request', methods=['GET', 'POST'])
 def reset_password_request():
     if current_user.is_authenticated:
@@ -137,6 +141,7 @@ def reset_password_request():
         return redirect(url_for('login'))
     return render_template('reset_password_request.html',
                            title='Reset Password', form=form)
+
 
 @app.route('/home', methods=['GET', 'POST'])
 def home():
@@ -188,6 +193,8 @@ def user(username):
         form=form,
         is_following=is_following
     )
+
+
 @app.route('/group/<int:group_id>')
 @login_required
 def group(group_id):
@@ -200,11 +207,12 @@ def group(group_id):
         members=members
     )
 
+
 @app.route('/create_post', methods=['POST'])
 @login_required
 def create_post():
-    header = request.form.get('header','').strip()
-    body   = request.form.get('body','').strip()
+    header = request.form.get('header', '').strip()
+    body = request.form.get('body', '').strip()
     if not header or not body:
         flash('Title and text are required.', 'danger')
         return redirect(request.referrer or url_for('index'))
@@ -224,11 +232,12 @@ def create_post():
     flash('Your post has been created!', 'success')
     return redirect(request.referrer or url_for('index'))
 
+
 @app.route('/post/<int:post_id>/comment', methods=['POST'])
 @login_required
 def comment_post(post_id):
     post = Post.query.get_or_404(post_id)
-    body = request.form.get('comment_body','').strip()
+    body = request.form.get('comment_body', '').strip()
     if not body:
         flash('Comment cannot be empty.', 'danger')
         return redirect(request.referrer or url_for('index'))
@@ -237,3 +246,53 @@ def comment_post(post_id):
     db.session.commit()
     flash('Your comment was posted.', 'success')
     return redirect(request.referrer or url_for('index'))
+
+
+@app.route('/update_profile', methods=['POST'])
+@login_required
+def update_profile():
+    # Make sure the uploads directory exists
+    uploads_dir = os.path.join(app.root_path, 'static', 'uploads')
+    os.makedirs(uploads_dir, exist_ok=True)
+
+    # Update the user's bio
+    about_me = request.form.get('about_me', '')
+    current_user.about_me = about_me
+
+    # Handle profile picture upload
+    if 'profile_picture' in request.files:
+        profile_pic = request.files['profile_picture']
+        if profile_pic and profile_pic.filename:
+            # Make the filename unique with user ID and timestamp
+            import time
+            filename = f"profile_{current_user.id}_{int(time.time())}_{secure_filename(profile_pic.filename)}"
+            save_path = os.path.join(uploads_dir, filename)
+
+            # Save the file
+            profile_pic.save(save_path)
+
+            # Save the profile picture path to the user model
+            current_user.profile_picture_path = filename
+            print(f"Profile picture saved as: {filename}")
+
+    # Handle banner upload
+    if 'profile_banner' in request.files:
+        profile_banner = request.files['profile_banner']
+        if profile_banner and profile_banner.filename:
+            # Make the filename unique
+            import time
+            filename = f"banner_{current_user.id}_{int(time.time())}_{secure_filename(profile_banner.filename)}"
+            save_path = os.path.join(uploads_dir, filename)
+
+            # Save the file
+            profile_banner.save(save_path)
+
+            # Save the banner path to the user model
+            current_user.banner_path = filename
+            print(f"Banner saved as: {filename}")
+
+    # Commit changes to database
+    db.session.commit()
+
+    flash('Your profile has been updated!', 'success')
+    return redirect(url_for('user', username=current_user.username))
