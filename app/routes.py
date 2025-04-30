@@ -408,3 +408,81 @@
 #         return jsonify(success=False, errors=form.errors), 400
 #     flash('Failed to create group. Please fix the errors below.', 'danger')
 #     return redirect(request.referrer or url_for('index'))
+
+    media = request.files.get('media')
+    if media and media.filename:
+        filename = secure_filename(media.filename)
+        save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        media.save(save_path)
+        # *** assign to post.media_path ***
+        post.media_path = filename
+
+    db.session.add(post)
+    db.session.commit()
+    flash('Your post has been created!', 'success')
+    return redirect(request.referrer or url_for('index'))
+
+
+@app.route('/post/<int:post_id>/comment', methods=['POST'])
+@login_required
+def comment_post(post_id):
+    post = Post.query.get_or_404(post_id)
+    body = request.form.get('comment_body', '').strip()
+    if not body:
+        flash('Comment cannot be empty.', 'danger')
+        return redirect(request.referrer or url_for('index'))
+    c = Comment(body=body, author=current_user, post=post)
+    db.session.add(c)
+    db.session.commit()
+    flash('Your comment was posted.', 'success')
+    return redirect(request.referrer or url_for('index'))
+
+
+@app.route('/update_profile', methods=['POST'])
+@login_required
+def update_profile():
+    # Make sure the uploads directory exists
+    uploads_dir = os.path.join(app.root_path, 'static', 'uploads')
+    os.makedirs(uploads_dir, exist_ok=True)
+
+    # Update the user's bio
+    about_me = request.form.get('about_me', '')
+    current_user.about_me = about_me
+
+    # Handle profile picture upload
+    if 'profile_picture' in request.files:
+        profile_pic = request.files['profile_picture']
+        if profile_pic and profile_pic.filename:
+            # Make the filename unique with user ID and timestamp
+            import time
+            filename = f"profile_{current_user.id}_{int(time.time())}_{secure_filename(profile_pic.filename)}"
+            save_path = os.path.join(uploads_dir, filename)
+
+            # Save the file
+            profile_pic.save(save_path)
+
+            # Save the profile picture path to the user model
+            current_user.profile_picture_path = filename
+            print(f"Profile picture saved as: {filename}")
+
+    # Handle banner upload
+    if 'profile_banner' in request.files:
+        profile_banner = request.files['profile_banner']
+        if profile_banner and profile_banner.filename:
+            # Make the filename unique
+            import time
+            filename = f"banner_{current_user.id}_{int(time.time())}_{secure_filename(profile_banner.filename)}"
+            save_path = os.path.join(uploads_dir, filename)
+
+            # Save the file
+            profile_banner.save(save_path)
+
+            # Save the banner path to the user model
+            current_user.banner_path = filename
+            print(f"Banner saved as: {filename}")
+
+    # Commit changes to database
+    db.session.commit()
+
+    flash('Your profile has been updated!', 'success')
+    return redirect(url_for('user', username=current_user.username))
