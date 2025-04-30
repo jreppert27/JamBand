@@ -58,7 +58,7 @@
         <div class="col-md-3 text-center mb-4">
           <img src="{{ member.avatar(128) }}" class="rounded-circle mb-2" alt="{{ member.username }}">
           <h5>
-            <a href="{{ url_for('user', username=member.username) }}">{{ member.username }}</a>
+            <a href="{{ url_for('main.user', username=member.username) }}">{{ member.username }}</a>
           </h5>
         </div>
       {% else %}

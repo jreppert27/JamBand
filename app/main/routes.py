@@ -163,12 +163,12 @@ def create_group():
         db.session.add(gm)
         db.session.commit()
         flash(f'Group "{new_group.name}" created!', 'success')
-        return redirect(url_for('group', group_id=new_group.id))
+        return redirect(url_for('main.group', group_id=new_group.id))
     # If validation fails, re-display homepage with form errors
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify(success=False, errors=form.errors), 400
     flash('Failed to create group. Please fix the errors below.', 'danger')
-    return redirect(request.referrer or url_for('index'))
+    return redirect(request.referrer or url_for('main.index'))
 
 @bp.route('/create_post', methods=['POST'])
 @login_required
@@ -177,7 +177,7 @@ def create_post():
     body   = request.form.get('body','').strip()
     if not header or not body:
         flash('Title and text are required.', 'danger')
-        return redirect(request.referrer or url_for('index'))
+        return redirect(request.referrer or url_for('main.index'))
 
     post = Post(header=header, body=body, author=current_user)
 
@@ -199,7 +199,7 @@ def create_post():
     db.session.add(post)
     db.session.commit()
     flash('Your post has been created!', 'success')
-    return redirect(request.referrer or url_for('index'))
+    return redirect(request.referrer or url_for('main.index'))
 
 @bp.route('/user/<username>', methods=['GET', 'POST'])
 @login_required
@@ -219,7 +219,7 @@ def user(username):
             current_user.follow(user_obj)
             flash(f'You are now following {user_obj.username}.', 'success')
         db.session.commit()
-        return redirect(url_for('user', username=username))
+        return redirect(url_for('main.user', username=username))
 
     # Profile‐edit logic (unchanged)
     if request.method == 'POST' and user_obj == current_user:
@@ -235,7 +235,7 @@ def user(username):
 
         db.session.commit()
         flash('Your profile has been updated.', 'success')
-        return redirect(url_for('user', username=username))
+        return redirect(url_for('main.user', username=username))
 
     groups = user_obj.groups
     return render_template(
@@ -265,12 +265,12 @@ def comment_post(post_id):
     body = request.form.get('comment_body','').strip()
     if not body:
         flash('Comment cannot be empty.', 'danger')
-        return redirect(request.referrer or url_for('index'))
+        return redirect(request.referrer or url_for('main.index'))
     c = Comment(body=body, author=current_user, post=post)
     db.session.add(c)
     db.session.commit()
     flash('Your comment was posted.', 'success')
-    return redirect(request.referrer or url_for('index'))
+    return redirect(request.referrer or url_for('main.index'))
 
 @bp.route('/post/<int:post_id>/edit', methods=['POST'])
 @login_required
@@ -288,7 +288,7 @@ def edit_post(post_id):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify(success=False, error='Both title and body are required'), 400
         flash('Both title and body are required.', 'danger')
-        return redirect(request.referrer or url_for('index'))
+        return redirect(request.referrer or url_for('main.index'))
 
     # apply changes
     post.header = new_header
@@ -306,7 +306,7 @@ def edit_post(post_id):
 
     # otherwise a normal redirect
     flash('Your post was updated.', 'success')
-    return redirect(request.referrer or url_for('index'))
+    return redirect(request.referrer or url_for('main.index'))
 
 
 @bp.route('/post/<int:post_id>/delete', methods=['POST'])
@@ -318,7 +318,7 @@ def delete_post(post_id):
     db.session.delete(post)
     db.session.commit()
     flash('Post deleted.', 'info')
-    return redirect(request.referrer or url_for('index'))
+    return redirect(request.referrer or url_for('main.index'))
 
 @bp.route('/comment/<int:comment_id>/edit', methods=['POST'])
 @login_required
@@ -356,7 +356,7 @@ def delete_comment(comment_id):
     db.session.delete(comment)
     db.session.commit()
     flash('Comment deleted.', 'info')
-    return redirect(request.referrer or url_for('index'))
+    return redirect(request.referrer or url_for('main.index'))
 
 from flask import request, jsonify
 
@@ -389,4 +389,38 @@ def reply_comment(comment_id):
         )
 
     flash('Your reply was posted.', 'success')
-    return redirect(request.referrer or url_for('index'))
+    return redirect(request.referrer or url_for('main.index'))
+
+@bp.route('/post/<int:post_id>/comment', methods=['POST'])
+@login_required
+def create_comment(post_id):
+    post = Post.query.get_or_404(post_id)
+    body = request.form.get('comment_body','').strip()
+    parent_id = request.form.get('parent_id')
+
+    if not body:
+        return jsonify(success=False, error="Comment cannot be empty."), 400
+
+    comment = Comment(
+        body=body,
+        author=current_user,
+        post=post,
+        parent_id=int(parent_id) if parent_id else None
+    )
+    db.session.add(comment)
+    db.session.commit()
+
+    # If AJAX, return JSON so your JS can insert the new comment inline
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify(
+            success=True,
+            comment_id=comment.id,
+            parent_id=comment.parent_id,
+            body=comment.body,
+            author_username=current_user.username,
+            timestamp=comment.timestamp.strftime('%b %d, %Y %H:%M')
+        )
+
+    flash("Your comment was posted!", "success")
+    # return redirect(request.referrer or url_for('main.index'))
+
