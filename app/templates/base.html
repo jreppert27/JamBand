@@ -203,8 +203,8 @@
         <!-- Right side - Profile Button with profile picture -->
         <div>
           {% if current_user.is_authenticated %}
-            <a href="{{ url_for('main.user', username=current_user.username) }}" class="btn">
-              <i class="bi bi-person-circle fs-4"></i>
+            <a href="{{ url_for('main.user', username=current_user.username) }}" class="btn p-0">
+              <img src="{{ current_user.avatar(40) }}" class="navbar-profile-pic" alt="{{ current_user.username }}'s profile">
             </a>
           {% else %}
             <a href="{{ url_for('auth.login') }}" class="btn">
@@ -440,7 +440,7 @@
               <small class="text-muted ms-2">${json.timestamp}</small>
               <p class="mb-1">${json.body}</p>
             `;
-            // append under the parent’s reply-list
+            // append under the parent's reply-list
             const ul = document.getElementById(`reply-list-${json.parent_id}`);
             ul.appendChild(li);
             // clear & hide the form
