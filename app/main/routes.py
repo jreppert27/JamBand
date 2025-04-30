@@ -424,6 +424,7 @@ def create_comment(post_id):
     flash("Your comment was posted!", "success")
     # return redirect(request.referrer or url_for('main.index'))
 
+
 @bp.route('/update_profile', methods=['POST'])
 @login_required
 def update_profile():
@@ -471,4 +472,4 @@ def update_profile():
     db.session.commit()
 
     flash('Your profile has been updated!', 'success')
-    return redirect(url_for('user', username=current_user.username))
+    return redirect(url_for('main.user', username=current_user.username))
