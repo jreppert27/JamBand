@@ -409,33 +409,33 @@
 #     flash('Failed to create group. Please fix the errors below.', 'danger')
 #     return redirect(request.referrer or url_for('index'))
 
-    media = request.files.get('media')
-    if media and media.filename:
-        filename = secure_filename(media.filename)
-        save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        media.save(save_path)
-        # *** assign to post.media_path ***
-        post.media_path = filename
-
-    db.session.add(post)
-    db.session.commit()
-    flash('Your post has been created!', 'success')
-    return redirect(request.referrer or url_for('index'))
-
-
-@app.route('/post/<int:post_id>/comment', methods=['POST'])
-@login_required
-def comment_post(post_id):
-    post = Post.query.get_or_404(post_id)
-    body = request.form.get('comment_body', '').strip()
-    if not body:
-        flash('Comment cannot be empty.', 'danger')
-        return redirect(request.referrer or url_for('index'))
-    c = Comment(body=body, author=current_user, post=post)
-    db.session.add(c)
-    db.session.commit()
-    flash('Your comment was posted.', 'success')
-    return redirect(request.referrer or url_for('index'))
+#     media = request.files.get('media')
+#     if media and media.filename:
+#         filename = secure_filename(media.filename)
+#         save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+#         media.save(save_path)
+#         # *** assign to post.media_path ***
+#         post.media_path = filename
+#
+#     db.session.add(post)
+#     db.session.commit()
+#     flash('Your post has been created!', 'success')
+#     return redirect(request.referrer or url_for('index'))
+#
+#
+# @app.route('/post/<int:post_id>/comment', methods=['POST'])
+# @login_required
+# def comment_post(post_id):
+#     post = Post.query.get_or_404(post_id)
+#     body = request.form.get('comment_body', '').strip()
+#     if not body:
+#         flash('Comment cannot be empty.', 'danger')
+#         return redirect(request.referrer or url_for('index'))
+#     c = Comment(body=body, author=current_user, post=post)
+#     db.session.add(c)
+#     db.session.commit()
+#     flash('Your comment was posted.', 'success')
+#     return redirect(request.referrer or url_for('index'))
 
 
 @app.route('/update_profile', methods=['POST'])

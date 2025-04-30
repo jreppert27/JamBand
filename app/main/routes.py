@@ -424,3 +424,51 @@ def create_comment(post_id):
     flash("Your comment was posted!", "success")
     # return redirect(request.referrer or url_for('main.index'))
 
+@bp.route('/update_profile', methods=['POST'])
+@login_required
+def update_profile():
+    # Make sure the uploads directory exists
+    uploads_dir = os.path.join(bp.root_path, 'static', 'uploads')
+    os.makedirs(uploads_dir, exist_ok=True)
+
+    # Update the user's bio
+    about_me = request.form.get('about_me', '')
+    current_user.about_me = about_me
+
+    # Handle profile picture upload
+    if 'profile_picture' in request.files:
+        profile_pic = request.files['profile_picture']
+        if profile_pic and profile_pic.filename:
+            # Make the filename unique with user ID and timestamp
+            import time
+            filename = f"profile_{current_user.id}_{int(time.time())}_{secure_filename(profile_pic.filename)}"
+            save_path = os.path.join(uploads_dir, filename)
+
+            # Save the file
+            profile_pic.save(save_path)
+
+            # Save the profile picture path to the user model
+            current_user.profile_picture_path = filename
+            print(f"Profile picture saved as: {filename}")
+
+    # Handle banner upload
+    if 'profile_banner' in request.files:
+        profile_banner = request.files['profile_banner']
+        if profile_banner and profile_banner.filename:
+            # Make the filename unique
+            import time
+            filename = f"banner_{current_user.id}_{int(time.time())}_{secure_filename(profile_banner.filename)}"
+            save_path = os.path.join(uploads_dir, filename)
+
+            # Save the file
+            profile_banner.save(save_path)
+
+            # Save the banner path to the user model
+            current_user.banner_path = filename
+            print(f"Banner saved as: {filename}")
+
+    # Commit changes to database
+    db.session.commit()
+
+    flash('Your profile has been updated!', 'success')
+    return redirect(url_for('user', username=current_user.username))
