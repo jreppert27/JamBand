@@ -282,54 +282,47 @@
          aria-labelledby="createPostModalLabel" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">
-          <!-- 1) Use the create_post endpoint -->
           <form action="{{ url_for('main.create_post') }}"
                 method="post"
                 enctype="multipart/form-data">
-            <!-- 2) Include the CSRF token -->
             {{ post_form.hidden_tag() }}
-
             <div class="modal-header">
               <h5 class="modal-title" id="createPostModalLabel">New Post</h5>
               <button type="button" class="btn-close"
                       data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-              <!-- Dropdown: Post To -->
+              <!-- Post To -->
               <div class="mb-3">
-                <label for="postTarget" class="form-label">Post To</label>
-                <select class="form-select" id="postTarget" name="group_id">
-                  <option value="">Your Profile</option>
-                  {% for grp in current_user.groups %}
-                  <option value="{{ grp.id }}">{{ grp.name }}</option>
-                  {% endfor %}
-                </select>
+                {{ post_form.group_id.label(class="form-label", for="postTarget") }}
+                {{ post_form.group_id(class="form-select", id="postTarget") }}
               </div>
+              <!-- Title -->
               <div class="mb-3">
-                <label for="postHeader" class="form-label">Title</label>
-                <input type="text" class="form-control" id="postHeader"
-                       name="header" required>
+                {{ post_form.header.label(class="form-label", for="postHeader") }}
+                {{ post_form.header(class="form-control", id="postHeader", placeholder="Enter title") }}
               </div>
+              <!-- Body Text -->
               <div class="mb-3">
-                <label for="postBody" class="form-label">Text</label>
-                <textarea class="form-control" id="postBody" name="body"
-                          rows="4" required></textarea>
+                {{ post_form.body.label(class="form-label", for="postBody") }}
+                {{ post_form.body(class="form-control", id="postBody", rows="4", placeholder="Write something…") }}
               </div>
+              <!-- Optional Media -->
               <div class="mb-3">
-                <label for="postMedia" class="form-label">Media (optional)</label>
-                <input type="file" class="form-control" id="postMedia"
-                       name="media">
+                {{ post_form.media.label(class="form-label", for="postMedia") }}
+                {{ post_form.media(class="form-control", id="postMedia") }}
               </div>
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary"
                       data-bs-dismiss="modal">Cancel</button>
-              <button type="submit" class="btn btn-primary">Post</button>
+              {{ post_form.submit(class="btn btn-primary") }}
             </div>
           </form>
         </div>
       </div>
     </div>
+
 
     <!-- Settings Modal -->
     <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">

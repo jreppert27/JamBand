@@ -1,14 +1,14 @@
 # app/main/routes.py
 import os
 
-from flask import render_template, flash, redirect, url_for, request, jsonify, abort, current_app
+from flask import render_template, flash, redirect, url_for, request, jsonify, abort, current_app, Blueprint
 from flask_login import login_required, current_user
 import sqlalchemy as sa                   # if you really need sa.select
 from werkzeug.utils import secure_filename
 
-from . import bp                          # your Blueprint
-from .. import db                         # your SQLAlchemy extension
-from ..forms import *              # import only what you need
+from . import bp
+from app import db
+from .forms import PostForm, GroupForm, FollowButton, EditProfileForm
 from ..models import *                 # and your models
 
 # register two URLs on the same view
@@ -206,12 +206,10 @@ def create_post():
 def user(username):
     user_obj = User.query.filter_by(username=username).first_or_404()
 
-    # instantiate the follow/unfollow form
-    form = FollowButton()
+    # 1) Follow/unfollow form, only for non-owners
+    follow_form = FollowButton()
     is_following = current_user.is_following(user_obj)
-
-    # Only non-owners can hit the follow/unfollow POST
-    if user_obj != current_user and form.validate_on_submit():
+    if user_obj != current_user and follow_form.validate_on_submit():
         if is_following:
             current_user.unfollow(user_obj)
             flash(f'You have unfollowed {user_obj.username}.', 'info')
@@ -221,21 +219,40 @@ def user(username):
         db.session.commit()
         return redirect(url_for('main.user', username=username))
 
-    # Profile‐edit logic (unchanged)
-    if request.method == 'POST' and user_obj == current_user:
-        new_bio = request.form.get('about_me', '')
-        user_obj.about_me = new_bio
+    # 2) Edit-profile form, only for the owner
+    edit_form = EditProfileForm()
+    if user_obj == current_user and edit_form.validate_on_submit():
+        # update bio
+        current_user.about_me = edit_form.about_me.data
 
-        media_file = request.files.get('media_upload')
-        if media_file and media_file.filename:
-            filename = secure_filename(media_file.filename)
-            media_path = os.path.join(bp.config['UPLOAD_FOLDER'], filename)
-            media_file.save(media_path)
-            flash('Media uploaded successfully!', 'info')
+        # handle profile picture
+        pic = edit_form.profile_picture.data
+        if pic:
+            filename = secure_filename(pic.filename)
+            pic.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
+            current_user.profile_picture_path = filename
+
+        # handle banner
+        banner = edit_form.profile_banner.data
+        if banner:
+            fname = secure_filename(banner.filename)
+            banner.save(os.path.join(current_app.config['UPLOAD_FOLDER'], fname))
+            current_user.banner_path = fname
 
         db.session.commit()
         flash('Your profile has been updated.', 'success')
         return redirect(url_for('main.user', username=username))
+
+    # render
+    return render_template(
+        'profile.html',
+        title=f"{user_obj.username}'s Profile",
+        user=user_obj,
+        groups=user_obj.groups,
+        follow_form=follow_form,
+        is_following=is_following,
+        edit_profile_form=edit_form
+    )
 
     groups = user_obj.groups
     return render_template(
@@ -246,6 +263,7 @@ def user(username):
         form=form,
         is_following=is_following
     )
+
 @bp.route('/group/<int:group_id>')
 @login_required
 def group(group_id):
@@ -428,48 +446,28 @@ def create_comment(post_id):
 @bp.route('/update_profile', methods=['POST'])
 @login_required
 def update_profile():
-    # Make sure the uploads directory exists
-    uploads_dir = os.path.join(bp.root_path, 'static', 'uploads')
-    os.makedirs(uploads_dir, exist_ok=True)
-
-    # Update the user's bio
-    about_me = request.form.get('about_me', '')
-    current_user.about_me = about_me
-
-    # Handle profile picture upload
-    if 'profile_picture' in request.files:
-        profile_pic = request.files['profile_picture']
-        if profile_pic and profile_pic.filename:
-            # Make the filename unique with user ID and timestamp
-            import time
-            filename = f"profile_{current_user.id}_{int(time.time())}_{secure_filename(profile_pic.filename)}"
-            save_path = os.path.join(uploads_dir, filename)
-
-            # Save the file
-            profile_pic.save(save_path)
-
-            # Save the profile picture path to the user model
+    form = EditProfileForm()
+    if form.validate_on_submit():
+        # handle profile picture upload
+        pic = form.profile_picture.data
+        if pic:
+            filename = secure_filename(pic.filename)
+            pic.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
             current_user.profile_picture_path = filename
-            print(f"Profile picture saved as: {filename}")
 
-    # Handle banner upload
-    if 'profile_banner' in request.files:
-        profile_banner = request.files['profile_banner']
-        if profile_banner and profile_banner.filename:
-            # Make the filename unique
-            import time
-            filename = f"banner_{current_user.id}_{int(time.time())}_{secure_filename(profile_banner.filename)}"
-            save_path = os.path.join(uploads_dir, filename)
+        # handle banner upload
+        banner = form.profile_banner.data
+        if banner:
+            banner_filename = secure_filename(banner.filename)
+            banner.save(os.path.join(current_app.config['UPLOAD_FOLDER'], banner_filename))
+            current_user.banner_path = banner_filename
 
-            # Save the file
-            profile_banner.save(save_path)
+        # about me
+        current_user.about_me = form.about_me.data
 
-            # Save the banner path to the user model
-            current_user.banner_path = filename
-            print(f"Banner saved as: {filename}")
+        db.session.commit()
+        flash('Your profile has been updated.', 'success')
+    else:
+        flash('Error updating profile. Please check the fields.', 'danger')
 
-    # Commit changes to database
-    db.session.commit()
-
-    flash('Your profile has been updated!', 'success')
     return redirect(url_for('main.user', username=current_user.username))
