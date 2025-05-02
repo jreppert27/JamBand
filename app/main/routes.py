@@ -429,7 +429,7 @@ def create_comment(post_id):
 @login_required
 def update_profile():
     # Make sure the uploads directory exists
-    uploads_dir = os.path.join(bp.root_path, 'static', 'uploads')
+    uploads_dir = os.path.join(current_app.root_path, 'static', 'uploads')
     os.makedirs(uploads_dir, exist_ok=True)
 
     # Update the user's bio
@@ -473,3 +473,62 @@ def update_profile():
 
     flash('Your profile has been updated!', 'success')
     return redirect(url_for('main.user', username=current_user.username))
+
+
+@bp.route('/group/<int:group_id>/update', methods=['POST'])
+@login_required
+def update_group(group_id):
+    # Get the group and verify current user is a member
+    group = Group.query.get_or_404(group_id)
+
+    # Check if user is a member of this group
+    is_member = current_user in group.members
+    if not is_member:
+        flash('You must be a member of this group to edit it.', 'danger')
+        return redirect(url_for('main.group', group_id=group_id))
+
+    # Make sure the uploads directory exists
+    uploads_dir = os.path.join(current_app.root_path, 'static', 'uploads')
+    os.makedirs(uploads_dir, exist_ok=True)
+
+    # Update the group's bio
+    bio = request.form.get('bio', '')
+    group.bio = bio
+
+    # Handle group avatar upload
+    if 'group_avatar' in request.files:
+        avatar = request.files['group_avatar']
+        if avatar and avatar.filename:
+            # Make the filename unique with group ID and timestamp
+            import time
+            filename = f"group_avatar_{group_id}_{int(time.time())}_{secure_filename(avatar.filename)}"
+            save_path = os.path.join(uploads_dir, filename)
+
+            # Save the file
+            avatar.save(save_path)
+
+            # Save the avatar path to the group model
+            group.avatar_path = filename
+            print(f"Group avatar saved as: {filename}")
+
+    # Handle group banner upload
+    if 'group_banner' in request.files:
+        banner = request.files['group_banner']
+        if banner and banner.filename:
+            # Make the filename unique
+            import time
+            filename = f"group_banner_{group_id}_{int(time.time())}_{secure_filename(banner.filename)}"
+            save_path = os.path.join(uploads_dir, filename)
+
+            # Save the file
+            banner.save(save_path)
+
+            # Save the banner path to the group model
+            group.banner_path = filename
+            print(f"Group banner saved as: {filename}")
+
+    # Commit changes to database
+    db.session.commit()
+
+    flash('Group has been updated!', 'success')
+    return redirect(url_for('main.group', group_id=group_id))

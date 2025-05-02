@@ -66,7 +66,7 @@ class User(UserMixin, db.Model):
     def avatar(self, size):
         # Check for custom profile picture first
         if self.profile_picture_path:
-            return url_for('static', filename='uploads/' + self.profile_picture_path)
+            return url_for('static', filename=f'uploads/{self.profile_picture_path}')
         # Fall back to Gravatar
         digest = md5(self.email.lower().encode('utf-8')).hexdigest()
         return f'https://www.gravatar.com/avatar/{digest}?d=identicon&s={size}'
@@ -122,6 +122,13 @@ class User(UserMixin, db.Model):
             return
         return db.session.get(User, id)
 
+    def get_membership(self, group_id):
+        """Get membership details for a specific group"""
+        return GroupMembers.query.filter_by(
+            user_id=self.id,
+            group_id=group_id
+        ).first()
+
 
 @login.user_loader
 def load_user(id):
@@ -171,9 +178,13 @@ class Comment(db.Model):
 
 
 class Group(db.Model):
-    id   = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64), unique=True, index=True)
-    bio  = db.Column(db.String(256))
+    bio = db.Column(db.String(256))
+    # Add avatar and banner paths
+    avatar_path = db.Column(db.String(256), nullable=True)
+    banner_path = db.Column(db.String(256), nullable=True)
+
     posts: so.Mapped[List['Post']] = so.relationship(
         back_populates='group',
         order_by="Post.timestamp.desc()"
@@ -197,6 +208,10 @@ class Group(db.Model):
         return '<Group {}>'.format(self.name)
 
     def avatar(self, size):
+        # Check for custom avatar first
+        if hasattr(self, 'avatar_path') and self.avatar_path:
+            return url_for('static', filename=f'uploads/{self.avatar_path}')
+        # Fall back to Gravatar
         digest = md5(self.name.lower().encode('utf-8')).hexdigest()
         return f'https://www.gravatar.com/avatar/{digest}?d=identicon&s={size}'
 
