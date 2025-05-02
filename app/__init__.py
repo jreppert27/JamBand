@@ -1,7 +1,10 @@
 # app/__init__.py
-import logging, os
+import os
+import logging
 from logging.handlers import SMTPHandler, RotatingFileHandler
-from flask import Flask, request
+
+import rq
+from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
@@ -9,33 +12,29 @@ from flask_mail import Mail
 from flask_bootstrap import Bootstrap
 from flask_moment import Moment
 from flask_babel import Babel
-from elasticsearch import Elasticsearch
 from flask_wtf import CSRFProtect
+from elasticsearch import Elasticsearch
 from redis import Redis
-import rq
 
-# from app.forms import *
-# from app.models import *
 from config import Config
-from flask import Blueprint
 
+# instantiate extensions without an app
 db        = SQLAlchemy()
-migrate   = Migrate()        # ← no app passed here
+migrate   = Migrate()
 login     = LoginManager()
 mail      = Mail()
 bootstrap = Bootstrap()
 moment    = Moment()
 babel     = Babel()
-bp = Blueprint('auth', __name__)
 csrf      = CSRFProtect()
 
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    # bind extensions
+    # initialize extensions
     db.init_app(app)
-    migrate.init_app(app, db)
+    migrate.init_app(app, db)       # now Migrate will register its CLI commands
     login.init_app(app)
     mail.init_app(app)
     bootstrap.init_app(app)
@@ -43,14 +42,19 @@ def create_app(config_class=Config):
     babel.init_app(app)
     csrf.init_app(app)
 
-    # safe ES / Redis
-    es_url = app.config.get('ELASTICSEARCH_URL')
-    app.elasticsearch = Elasticsearch([es_url]) if es_url else None
+    # optional: Elasticsearch & Redis clients
+    if app.config.get('ELASTICSEARCH_URL'):
+        app.elasticsearch = Elasticsearch([app.config['ELASTICSEARCH_URL']])
+    else:
+        app.elasticsearch = None
 
-    redis_url = app.config.get('REDIS_URL')
-    app.redis = Redis.from_url(redis_url) if redis_url else None
+    if app.config.get('REDIS_URL'):
+        app.redis = Redis.from_url(app.config['REDIS_URL'])
+        app.task_queue = rq.Queue('default', connection=app.redis)
+    else:
+        app.redis = None
 
-    # register blueprints
+    # register your blueprints
     from app.errors import bp as errors_bp
     app.register_blueprint(errors_bp)
 
@@ -58,27 +62,29 @@ def create_app(config_class=Config):
     app.register_blueprint(auth_bp, url_prefix='/auth')
 
     from app.main import bp as main_bp
-    app.register_blueprint(main_bp)
-
-    from app.cli import bp as cli_bp
-    app.register_blueprint(cli_bp)
+    app.register_blueprint(main_bp)    # your index and create_post live here
 
     from app.api import bp as api_bp
     app.register_blueprint(api_bp, url_prefix='/api')
 
+    # login settings
     login.login_view = 'auth.login'
+    login.login_message = "Please log in to access this page."
 
-    # logging handlers (only after app exists)
-    if not app.debug:
+    # logging (email on errors, rotating file)
+    if not app.debug and not app.testing:
         if app.config['MAIL_SERVER']:
-            auth   = (app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD']) \
-                         if app.config['MAIL_USERNAME'] else None
+            auth = None
+            if app.config['MAIL_USERNAME']:
+                auth = (app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
             secure = () if app.config['MAIL_USE_TLS'] else None
             mail_handler = SMTPHandler(
                 mailhost=(app.config['MAIL_SERVER'], app.config['MAIL_PORT']),
                 fromaddr='no-reply@' + app.config['MAIL_SERVER'],
-                toaddrs=app.config['ADMINS'], subject='JamBand Failure',
-                credentials=auth, secure=secure
+                toaddrs=app.config['ADMINS'],
+                subject='JamBand Application Error',
+                credentials=auth,
+                secure=secure
             )
             mail_handler.setLevel(logging.ERROR)
             app.logger.addHandler(mail_handler)
@@ -96,12 +102,16 @@ def create_app(config_class=Config):
         app.logger.setLevel(logging.INFO)
         app.logger.info('JamBand startup')
 
-    from .forms import GroupForm, PostForm, CommentForm, FollowButton
+    # inject your form objects into all templates
+    from app.main.forms import GroupForm, PostForm, CommentForm, FollowButton, EditProfileForm
     @app.context_processor
-    def inject_group_form():
-        return {'group_form': GroupForm(),
-                'post_form': PostForm(),
-                'comment_form': CommentForm(),
-                'follow_form': FollowButton()}
+    def inject_forms():
+        return {
+            'group_form': GroupForm(),
+            'post_form': PostForm(),
+            'comment_form': CommentForm(),
+            'follow_form': FollowButton(),
+            'edit_profile_form': EditProfileForm()
+        }
 
     return app

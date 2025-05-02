@@ -4,7 +4,7 @@ from flask import redirect, url_for, flash, request, render_template
 from flask_login import current_user, login_user, logout_user
 from . import bp
 from .email import send_password_reset_email
-from ..forms import *
+from .forms import *
 
 
 @bp.route('/login', methods=['GET', 'POST'])
