@@ -50,7 +50,7 @@
     <p>{{ user.about_me or "No bio available." }}</p>
   </div>
 
-  <!-- Posts in a Pinterest-style masonry grid -->
+    <!-- Posts in a Pinterest-style masonry grid -->
   <style>
     .pinterest-container { column-count: 4; column-gap: 1rem; }
     .pin-card { display: inline-block; width: 100%; margin-bottom: 1rem; break-inside: avoid; }
@@ -59,30 +59,25 @@
 
   <h2 class="mt-5 mb-4">Posts</h2>
   <div class="pinterest-container">
-    {% if user.posts %}
-      {% for post in user.posts %}
-        <div class="pin-card">
-          <div class="card shadow-sm h-100 {% if post.is_pinned %}pinned-post{% endif %}">
-            {% if post.media_path %}
-              <img
-                src="{{ url_for('static', filename='uploads/' + post.media_path) }}"
-                class="card-img-top"
-                style="object-fit: cover; max-height: 200px;"
-                alt="Post media"
-              >
-            {% endif %}
-            <div class="card-body">
-              <h5 class="card-title">{{ post.header }}</h5>
-              <p class="card-text">{{ post.body }}</p>
-              <small class="text-muted">{{ post.timestamp.strftime('%b %d, %Y') }}</small>
-            </div>
-          </div>
+    {# first filter out any group posts #}
+    {% set personal_posts = user.posts
+         | selectattr('group', 'equalto', None)
+         | list %}
+    {% if personal_posts %}
+      {% for post in personal_posts %}
+        <div class="pin-card"
+             data-bs-toggle="modal"
+             data-bs-target="#postModal-{{ post.id }}"
+             style="cursor: pointer;">
+          {# reuse your _post.html partial here #}
+          {% include '_post.html' %}
         </div>
       {% endfor %}
     {% else %}
-      <p>No posts to display.</p>
+      <p>No personal posts to display.</p>
     {% endif %}
   </div>
+
 
   <!-- Groups -->
   <div class="profile-groups mt-4">
