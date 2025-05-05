@@ -5,7 +5,7 @@ import sqlalchemy.orm as so
 from app import create_app, db
 from app.models import (
     User, Post, Comment,
-    Group, GroupMembers, GroupFollowers,
+    Group, GroupMembers,
     Tag, Tags
 )
 
@@ -24,7 +24,6 @@ def make_shell_context():
         'Comment': Comment,
         'Group': Group,
         'GroupMembers': GroupMembers,
-        'GroupFollowers': GroupFollowers,
         'Tag': Tag,
         'Tags': Tags,
     }

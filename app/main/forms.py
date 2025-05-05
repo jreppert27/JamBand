@@ -15,21 +15,31 @@ class EmptyForm(FlaskForm):
 
 class PostForm(FlaskForm):
     group_id = SelectField('Post To', coerce=int, validators=[DataRequired()])
-    header   = StringField('Title', validators=[DataRequired()])
-    body     = TextAreaField('Text', validators=[DataRequired()])
+    header   = StringField('Title',    validators=[DataRequired()])
+    body     = TextAreaField('Text',   validators=[DataRequired()])
     media    = FileField('Media (optional)')
     submit   = SubmitField('Post')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Build the dropdown choices dynamically:
-        # value=0 means “Your Profile,” otherwise a group’s id
-        self.group_id.choices = [(0, 'Your Profile')] + [
-            (g.id, g.name) for g in current_user.groups
-        ]
+
+        # start with the “Your Profile” option
+        choices = [(0, 'Your Profile')]
+
+        # only add real groups if there’s a logged-in user
+        if current_user.is_authenticated:
+            # current_user.groups should exist now
+            choices += [(g.id, g.name) for g in current_user.groups]
+
+        self.group_id.choices = choices
 
 class FollowButton(FlaskForm):
     submit = SubmitField('Follow')
+
+class FollowGroupForm(FlaskForm):
+    submit = SubmitField()
+    class Meta:
+        csrf = False
 
 class CommentForm(FlaskForm):
     comment_body = TextAreaField('Comment', validators=[DataRequired()])

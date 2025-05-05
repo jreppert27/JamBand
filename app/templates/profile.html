@@ -33,11 +33,11 @@
       {% else %}
         <!-- Follow/Unfollow form for others -->
         <form method="POST" class="mt-2">
-          {{ form.hidden_tag() }}
+          {{ follow_form.hidden_tag() }}
           {% if is_following %}
-            {{ form.submit(class="btn btn-outline-secondary", value="Unfollow") }}
+            {{ follow_form.submit(class="btn btn-outline-secondary", value="Unfollow") }}
           {% else %}
-            {{ form.submit(class="btn btn-primary", value="Follow") }}
+            {{ follow_form.submit(class="btn btn-primary", value="Follow") }}
           {% endif %}
         </form>
       {% endif %}

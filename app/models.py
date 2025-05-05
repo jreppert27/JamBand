@@ -19,6 +19,13 @@ followers = sa.Table(
               primary_key=True)
 )
 
+group_followers = sa.Table(
+    'group_followers',
+    db.metadata,
+    sa.Column('user_id',  sa.Integer, sa.ForeignKey('user.id'),  primary_key=True),
+    sa.Column('group_id', sa.Integer, sa.ForeignKey('group.id'), primary_key=True),
+)
+
 
 class User(UserMixin, db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
@@ -49,8 +56,12 @@ class User(UserMixin, db.Model):
         back_populates='following')
     groups: so.Mapped[List['Group']] = so.relationship(
         secondary='group_members', back_populates='members')
-    followed_groups: so.WriteOnlyMapped['Group'] = so.relationship(
-        secondary='group_followers', back_populates='followers')
+    followed_groups = so.relationship(
+        'Group',
+        secondary=group_followers,
+        back_populates='followers',
+        lazy='dynamic'
+    )
     tags: so.WriteOnlyMapped['Tag'] = so.relationship(
         secondary='tags', back_populates='users')
 
@@ -197,8 +208,12 @@ class Group(db.Model):
     )
     members: so.Mapped[List['User']] = so.relationship(
         secondary='group_members', back_populates='groups')
-    followers: so.WriteOnlyMapped['User'] = so.relationship(
-        secondary='group_followers', back_populates='followed_groups')
+    followers = so.relationship(
+        'User',
+        secondary=group_followers,
+        back_populates='followed_groups',
+        lazy='dynamic'
+    )
     tags: so.WriteOnlyMapped['Tag'] = so.relationship(
         secondary='tags',
         back_populates='groups',
@@ -227,19 +242,6 @@ class GroupMembers(db.Model):
     def __repr__(self):
         return '<GroupMember user_id={}, group_id={}, role={}>'.format(
             self.user_id, self.group_id, self.role)
-
-
-class GroupFollowers(db.Model):
-    __tablename__ = 'group_followers'
-
-    id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id), index=True)
-    group_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(Group.id), index=True)
-    followed_at: so.Mapped[datetime] = so.mapped_column(default=lambda: datetime.now(timezone.utc))
-
-    def __repr__(self):
-        return '<GroupFollower user_id={}, group_id={}>'.format(
-            self.user_id, self.group_id)
 
 
 class Tag(db.Model):

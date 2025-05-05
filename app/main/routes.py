@@ -7,8 +7,8 @@ import sqlalchemy as sa                   # if you really need sa.select
 from werkzeug.utils import secure_filename
 
 from . import bp
-from app import db
-from .forms import PostForm, GroupForm, FollowButton, EditProfileForm
+from .. import db
+from .forms import PostForm, GroupForm, FollowButton, EditProfileForm, FollowGroupForm
 from ..models import *                 # and your models
 
 # register two URLs on the same view
@@ -54,12 +54,11 @@ def reset_db():
     flash("Resetting database and seeding with demo music-lovers data…")
 
     # 1) Wipe all tables
-    meta = db.metadata
-    for table in reversed(meta.sorted_tables):
+    for table in reversed(db.metadata.sorted_tables):
         db.session.execute(table.delete())
     db.session.commit()
 
-    # 2) Create some realistic users
+    # 2) Create users
     alice = User(username="alice", email="alice@example.com")
     alice.set_password("password123")
     bob   = User(username="bob",   email="bob@rockrevival.org")
@@ -70,73 +69,66 @@ def reset_db():
     db.session.add_all([alice, bob, carol])
     db.session.commit()
 
-    # 3) Follow relationships
-    alice.follow(bob)    # Alice follows Bob
-    alice.follow(carol)  # Alice follows Carol
-    bob.follow(alice)    # Bob follows Alice
-    carol.follow(bob)    # Carol follows Bob
+    # 3) User-to-user follows
+    alice.follow(bob)
+    alice.follow(carol)
+    bob.follow(alice)
+    carol.follow(bob)
     db.session.commit()
 
-    # 4) Create some music-themed groups
+    # 4) Create groups
     g1 = Group(name="Jazz Enthusiasts", bio="Discussing the smooth sounds of jazz.")
     g2 = Group(name="Rock Revival",     bio="Bringing classic rock back to life.")
     g3 = Group(name="Indie Artists",    bio="Sharing indie music and art.")
-
     db.session.add_all([g1, g2, g3])
     db.session.commit()
 
-    # 5) Assign members & admins in groups
-    gm1 = GroupMembers(user_id=alice.id, group_id=g1.id, role="admin")
-    gm2 = GroupMembers(user_id=bob.id,   group_id=g1.id, role="member")
-    gm3 = GroupMembers(user_id=bob.id,   group_id=g2.id, role="admin")
-    gm4 = GroupMembers(user_id=carol.id, group_id=g3.id, role="admin")
-
-    db.session.add_all([gm1, gm2, gm3, gm4])
+    # 5) Memberships
+    db.session.add_all([
+        GroupMembers(user_id=alice.id, group_id=g1.id, role="admin"),
+        GroupMembers(user_id=bob.id,   group_id=g1.id, role="member"),
+        GroupMembers(user_id=bob.id,   group_id=g2.id, role="admin"),
+        GroupMembers(user_id=carol.id, group_id=g3.id, role="admin"),
+    ])
     db.session.commit()
 
-    # 6) Group followers
-    gf1 = GroupFollowers(user_id=carol.id, group_id=g1.id)  # Carol follows Jazz Enthusiasts
-    gf2 = GroupFollowers(user_id=alice.id, group_id=g3.id)  # Alice follows Indie Artists
-
-    db.session.add_all([gf1, gf2])
+    # 6) Group follows
+    carol.followed_groups.append(g1)
+    alice.followed_groups.append(g3)
     db.session.commit()
 
-    # 7) Create a mix of personal & group posts
-    p1 = Post(
-        header="Exploring Miles Davis",
-        body="Anyone listened to 'Kind of Blue'? Thoughts?",
-        author=alice, group=g1
-    )
-    p2 = Post(
-        header="Rock Cover Release",
-        body="Just dropped my cover of 'Stairway to Heaven'—feedback welcome!",
-        author=bob, group=g2
-    )
-    p3 = Post(
-        header="EP Launch",
-        body="My debut indie EP is out now on all streaming platforms!",
-        author=carol, group=g3
-    )
-    p4 = Post(
-        header="Random Thought",
-        body="Does anyone here play the piano? I'm looking for tips!",
-        author=alice
-    )
-    p5 = Post(
-        header="Live Jazz This Weekend",
-        body="Downtown club hosting a live set—who's in?",
-        author=bob, group=g1
-    )
+    # 7) Seed ~25 demo posts
+    demo_posts = []
+    authors = [alice, bob, carol]
+    groups  = [g1, g2, g3]
+    for i in range(1, 26):
+        author = authors[i % 3]
+        if i % 5 == 0:
+            # every 5th post is personal
+            header = f"Personal Thought #{i}"
+            body   = f"Just sharing personal reflections number {i}."
+            group  = None
+        else:
+            grp    = groups[i % 3]
+            header = f"{grp.name} Topic #{i}"
+            body   = f"Discussion point {i} in {grp.name}. What do you think?"
+            group  = grp
 
-    db.session.add_all([p1, p2, p3, p4, p5])
+        demo_posts.append(Post(
+            header=header,
+            body=body,
+            author=author,
+            group=group
+        ))
+
+    db.session.add_all(demo_posts)
     db.session.commit()
 
-    # 8) Seed some comments & nested replies
-    c1 = Comment(body="Absolutely a masterpiece!", author=bob,   post=p1)
-    c2 = Comment(body="I'll give it a listen tonight.",   author=carol, post=p1, parent=c1)
-    c3 = Comment(body="Congrats on the EP launch!",      author=alice, post=p3)
-    c4 = Comment(body="I love jazz piano too—check out Bill Evans.", author=carol, post=p4)
-
+    # 8) Seed a few comments & replies
+    c1 = Comment(body="Absolutely a masterpiece!", author=bob,   post=demo_posts[0])
+    c2 = Comment(body="I'll give it a listen tonight.",   author=carol, post=demo_posts[0], parent=c1)
+    c3 = Comment(body="Congrats on the EP launch!",      author=alice, post=demo_posts[2])
+    c4 = Comment(body="I love jazz piano too—check out Bill Evans.", author=carol, post=demo_posts[3])
     db.session.add_all([c1, c2, c3, c4])
     db.session.commit()
 
@@ -268,12 +260,20 @@ def user(username):
 @login_required
 def group(group_id):
     group_obj = db.session.get(Group, group_id) or abort(404)
-    members = group_obj.members  # assumes this relationship is now readable
-    return render_template(
-        'group.html',
+
+    # figure out your membership and role
+    membership = current_user.get_membership(group_id)
+    is_member = membership is not None
+    is_admin  = is_member and membership.role == 'admin'
+
+    members = group_obj.members   # list of User
+
+    return render_template('group.html',
         title=group_obj.name,
         group=group_obj,
-        members=members
+        members=members,
+        is_member=is_member,
+        is_admin=is_admin
     )
 
 @bp.route('/post/<int:post_id>/comment', methods=['POST'])
@@ -290,42 +290,36 @@ def comment_post(post_id):
     flash('Your comment was posted.', 'success')
     return redirect(request.referrer or url_for('main.index'))
 
-@bp.route('/post/<int:post_id>/edit', methods=['POST'])
+@bp.route('/post/<int:post_id>/edit', methods=['GET','POST'])
 @login_required
 def edit_post(post_id):
     post = Post.query.get_or_404(post_id)
-    if post.author != current_user:
+    if post.author_id != current_user.id:
         abort(403)
+    form = PostForm(obj=post)
 
-    # grab the form values
-    new_header = request.form.get('header', '').strip()
-    new_body   = request.form.get('body', '').strip()
+    if request.method == 'GET':
+        # return ONLY the form fragment
+        return render_template(
+            'partials/_edit_post_form.html',
+            form=form,
+            post=post
+        )
 
-    # validate
-    if not new_header or not new_body:
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify(success=False, error='Both title and body are required'), 400
-        flash('Both title and body are required.', 'danger')
-        return redirect(request.referrer or url_for('main.index'))
-
-    # apply changes
-    post.header = new_header
-    post.body   = new_body
-    db.session.commit()
-
-    # return JSON if AJAX
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+    # POST…
+    if form.validate_on_submit():
+        post.header = form.header.data
+        post.body   = form.body.data
+        db.session.commit()
+        # return updated data for JS to re-draw
         return jsonify(
             success=True,
-            post_id=post.id,
             header=post.header,
             body=post.body
         )
 
-    # otherwise a normal redirect
-    flash('Your post was updated.', 'success')
-    return redirect(request.referrer or url_for('main.index'))
-
+    # validation failed
+    return jsonify(success=False, errors=form.errors), 400
 
 @bp.route('/post/<int:post_id>/delete', methods=['POST'])
 @login_required
@@ -550,4 +544,90 @@ def update_group(group_id):
     db.session.commit()
 
     flash('Group has been updated!', 'success')
+    return redirect(url_for('main.group', group_id=group_id))
+
+@bp.route('/group/<int:group_id>/follow')
+@login_required
+def follow_group(group_id):
+    g = db.session.get(Group, group_id) or abort(404)
+    if current_user not in g.followers:
+        g.followers.append(current_user)
+        db.session.commit()
+        flash(f'You are now following {g.name}.', 'success')
+    return redirect(url_for('main.group', group_id=group_id))
+
+@bp.route('/group/<int:group_id>/unfollow')
+@login_required
+def unfollow_group(group_id):
+    g = db.session.get(Group, group_id) or abort(404)
+    if current_user in g.followers:
+        g.followers.remove(current_user)
+        db.session.commit()
+        flash(f'You have unfollowed {g.name}.', 'info')
+    return redirect(url_for('main.group', group_id=group_id))
+
+@bp.route('/group/<int:group_id>/leave')
+@login_required
+def leave_group(group_id):
+    gm = GroupMembers.query.filter_by(
+        group_id=group_id,
+        user_id=current_user.id
+    ).first()
+    if gm:
+        db.session.delete(gm)
+        db.session.commit()
+        flash('You have left the group.', 'info')
+    return redirect(url_for('main.index'))
+
+@bp.route('/group/<int:group_id>/add_member')
+@login_required
+def add_member(group_id):
+    group = db.session.get(Group, group_id) or abort(404)
+    membership = current_user.get_membership(group_id)
+    if not membership or membership.role != 'admin':
+        abort(403)
+
+    username = request.args.get('username','').strip()
+    if username:
+        user = User.query.filter_by(username=username).first()
+        if not user:
+            flash('User not found.', 'warning')
+        else:
+            exists = GroupMembers.query.filter_by(
+                group_id=group_id,
+                user_id=user.id
+            ).first()
+            if not exists:
+                gm = GroupMembers(user_id=user.id,
+                                  group_id=group_id,
+                                  role='member')
+                db.session.add(gm)
+                db.session.commit()
+                flash(f'{user.username} added to "{group.name}".', 'success')
+            else:
+                flash(f'{user.username} is already a member.', 'info')
+    else:
+        flash('Please enter a username.', 'warning')
+
+    return redirect(url_for('main.group', group_id=group_id))
+
+@bp.route('/group/<int:group_id>/remove_member/<int:user_id>')
+@login_required
+def remove_member(group_id, user_id):
+    group = db.session.get(Group, group_id) or abort(404)
+    membership = current_user.get_membership(group_id)
+    if not membership or membership.role != 'admin':
+        abort(403)
+
+    if user_id == current_user.id:
+        flash('Admins cannot remove themselves — use Leave Group.', 'warning')
+    else:
+        gm = GroupMembers.query.filter_by(
+            group_id=group_id, user_id=user_id
+        ).first()
+        if gm:
+            db.session.delete(gm)
+            db.session.commit()
+            flash('Member removed.', 'info')
+
     return redirect(url_for('main.group', group_id=group_id))
