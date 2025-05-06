@@ -98,6 +98,7 @@
           <h5 class="modal-title" id="editProfileModalLabel">Edit Profile</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
+        <!-- FIXED FORM: Using correct action, proper enctype, and consistent field names -->
         <form method="POST" action="{{ url_for('main.update_profile') }}" enctype="multipart/form-data">
           <!-- Add CSRF token -->
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>

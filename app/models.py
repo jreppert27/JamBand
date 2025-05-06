@@ -250,11 +250,11 @@ class Tag(db.Model):
     subtag: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey('tag.id'), nullable=True)
 
     parent: so.Mapped[Optional['Tag']] = so.relationship('Tag', remote_side=[id], backref='children')
-    users: so.WriteOnlyMapped[User] = so.relationship(
+    users: so.WriteOnlyMapped['User'] = so.relationship(
         secondary='tags',
         back_populates='tags',
         overlaps='tags')
-    groups: so.WriteOnlyMapped[Group] = so.relationship(
+    groups: so.WriteOnlyMapped['Group'] = so.relationship(
         secondary='tags',
         back_populates='tags',
         overlaps='tags,users')

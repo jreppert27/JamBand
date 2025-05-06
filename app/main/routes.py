@@ -34,7 +34,7 @@ def index():
         stmt = current_user.following_posts()
         posts = db.session.scalars(stmt).all()
     else:
-        # using model’s query API is simpler:
+        # using model's query API is simpler:
         posts = Post.query.order_by(Post.timestamp.desc()).all()
         # OR if you really want sa.select:
         # posts = db.session.scalars(
@@ -211,29 +211,7 @@ def user(username):
         db.session.commit()
         return redirect(url_for('main.user', username=username))
 
-    # 2) Edit-profile form, only for the owner
-    edit_form = EditProfileForm()
-    if user_obj == current_user and edit_form.validate_on_submit():
-        # update bio
-        current_user.about_me = edit_form.about_me.data
-
-        # handle profile picture
-        pic = edit_form.profile_picture.data
-        if pic:
-            filename = secure_filename(pic.filename)
-            pic.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
-            current_user.profile_picture_path = filename
-
-        # handle banner
-        banner = edit_form.profile_banner.data
-        if banner:
-            fname = secure_filename(banner.filename)
-            banner.save(os.path.join(current_app.config['UPLOAD_FOLDER'], fname))
-            current_user.banner_path = fname
-
-        db.session.commit()
-        flash('Your profile has been updated.', 'success')
-        return redirect(url_for('main.user', username=username))
+    # 2) Removed duplicate code - this function will now rely on the standalone update_profile route
 
     # render
     return render_template(
@@ -243,17 +221,7 @@ def user(username):
         groups=user_obj.groups,
         follow_form=follow_form,
         is_following=is_following,
-        edit_profile_form=edit_form
-    )
-
-    groups = user_obj.groups
-    return render_template(
-        'profile.html',
-        title=f"{user_obj.username}'s Profile",
-        user=user_obj,
-        groups=groups,
-        form=form,
-        is_following=is_following
+        edit_profile_form=EditProfileForm(obj=current_user)
     )
 
 @bp.route('/group/<int:group_id>')
@@ -342,10 +310,9 @@ def edit_comment(comment_id):
     new_body = request.form.get('comment_body', '').strip()
     if not new_body:
         if request.is_xhr:
-            return jsonify(success=False, error="Comment body can’t be empty"), 400
-        flash("Comment body can’t be empty", "danger")
+            return jsonify(success=False, error="Comment body can't be empty"), 400
+        flash("Comment body can't be empty", "danger")
         return redirect(request.referrer or url_for('main.index'))
-
     comment.body = new_body
     db.session.commit()
 
@@ -359,6 +326,7 @@ def edit_comment(comment_id):
     flash("Comment updated", "success")
     return redirect(request.referrer or url_for('main.index'))
 
+
 @bp.route('/comment/<int:comment_id>/delete', methods=['POST'])
 @login_required
 def delete_comment(comment_id):
@@ -370,13 +338,15 @@ def delete_comment(comment_id):
     flash('Comment deleted.', 'info')
     return redirect(request.referrer or url_for('main.index'))
 
+
 from flask import request, jsonify
+
 
 @bp.route('/comment/<int:comment_id>/reply', methods=['POST'])
 @login_required
 def reply_comment(comment_id):
     parent = Comment.query.get_or_404(comment_id)
-    body = request.form.get('comment_body','').strip()
+    body = request.form.get('comment_body', '').strip()
     if not body:
         return jsonify(success=False, error='Empty reply'), 400
 
@@ -403,11 +373,12 @@ def reply_comment(comment_id):
     flash('Your reply was posted.', 'success')
     return redirect(request.referrer or url_for('main.index'))
 
+
 @bp.route('/post/<int:post_id>/comment', methods=['POST'])
 @login_required
 def create_comment(post_id):
     post = Post.query.get_or_404(post_id)
-    body = request.form.get('comment_body','').strip()
+    body = request.form.get('comment_body', '').strip()
     parent_id = request.form.get('parent_id')
 
     if not body:
@@ -434,21 +405,18 @@ def create_comment(post_id):
         )
 
     flash("Your comment was posted!", "success")
-    # return redirect(request.referrer or url_for('main.index'))
+    return redirect(request.referrer or url_for('main.index'))
 
 
 @bp.route('/update_profile', methods=['POST'])
 @login_required
 def update_profile():
-    form = EditProfileForm()
-    if form.validate_on_submit():
-        # handle profile picture upload
-        pic = form.profile_picture.data
-        if pic:
-            filename = secure_filename(pic.filename)
-            pic.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
+    """
+    This is the dedicated route for handling profile updates, including file uploads.
+    All profile edit functionality should be directed here.
+    """
     # Make sure the uploads directory exists
-    uploads_dir = os.path.join(current_app.root_path, 'static', 'uploads')
+    uploads_dir = os.path.join(current_app.static_folder, 'uploads')
     os.makedirs(uploads_dir, exist_ok=True)
 
     # Update the user's bio
@@ -467,23 +435,27 @@ def update_profile():
             # Save the file
             profile_pic.save(save_path)
 
-            # Save the profile picture path to the user model
+            # Update the database with the new filename
             current_user.profile_picture_path = filename
 
-        # handle banner upload
-        banner = form.profile_banner.data
-        if banner:
-            banner_filename = secure_filename(banner.filename)
-            banner.save(os.path.join(current_app.config['UPLOAD_FOLDER'], banner_filename))
+    # Handle banner upload
+    if 'profile_banner' in request.files:
+        banner = request.files['profile_banner']
+        if banner and banner.filename:
+            # Make the filename unique with user ID and timestamp
+            import time
+            banner_filename = f"banner_{current_user.id}_{int(time.time())}_{secure_filename(banner.filename)}"
+            banner_path = os.path.join(uploads_dir, banner_filename)
+
+            # Save the file
+            banner.save(banner_path)
+
+            # Update the database with the new filename
             current_user.banner_path = banner_filename
 
-        # about me
-        current_user.about_me = form.about_me.data
-
-        db.session.commit()
-        flash('Your profile has been updated.', 'success')
-    else:
-        flash('Error updating profile. Please check the fields.', 'danger')
+    # Commit all changes
+    db.session.commit()
+    flash('Your profile has been updated.', 'success')
 
     return redirect(url_for('main.user', username=current_user.username))
 
@@ -501,7 +473,7 @@ def update_group(group_id):
         return redirect(url_for('main.group', group_id=group_id))
 
     # Make sure the uploads directory exists
-    uploads_dir = os.path.join(current_app.root_path, 'static', 'uploads')
+    uploads_dir = os.path.join(current_app.static_folder, 'uploads')
     os.makedirs(uploads_dir, exist_ok=True)
 
     # Update the group's bio
@@ -546,6 +518,7 @@ def update_group(group_id):
     flash('Group has been updated!', 'success')
     return redirect(url_for('main.group', group_id=group_id))
 
+
 @bp.route('/group/<int:group_id>/follow')
 @login_required
 def follow_group(group_id):
@@ -556,6 +529,7 @@ def follow_group(group_id):
         flash(f'You are now following {g.name}.', 'success')
     return redirect(url_for('main.group', group_id=group_id))
 
+
 @bp.route('/group/<int:group_id>/unfollow')
 @login_required
 def unfollow_group(group_id):
@@ -565,6 +539,7 @@ def unfollow_group(group_id):
         db.session.commit()
         flash(f'You have unfollowed {g.name}.', 'info')
     return redirect(url_for('main.group', group_id=group_id))
+
 
 @bp.route('/group/<int:group_id>/leave')
 @login_required
@@ -579,6 +554,7 @@ def leave_group(group_id):
         flash('You have left the group.', 'info')
     return redirect(url_for('main.index'))
 
+
 @bp.route('/group/<int:group_id>/add_member')
 @login_required
 def add_member(group_id):
@@ -587,7 +563,7 @@ def add_member(group_id):
     if not membership or membership.role != 'admin':
         abort(403)
 
-    username = request.args.get('username','').strip()
+    username = request.args.get('username', '').strip()
     if username:
         user = User.query.filter_by(username=username).first()
         if not user:
@@ -610,6 +586,7 @@ def add_member(group_id):
         flash('Please enter a username.', 'warning')
 
     return redirect(url_for('main.group', group_id=group_id))
+
 
 @bp.route('/group/<int:group_id>/remove_member/<int:user_id>')
 @login_required
